@@ -5,124 +5,124 @@
       "taiex_change_pct": -1.67,
       "candidates": [
         {
+          "code": "6269",
+          "name": "台郡",
+          "close": 75.2,
+          "score": 44.1
+        },
+        {
+          "code": "3450",
+          "name": "聯鈞",
+          "close": 625.0,
+          "score": 43.4
+        },
+        {
+          "code": "8996",
+          "name": "高力",
+          "close": 1175.0,
+          "score": 43.4
+        },
+        {
           "code": "1608",
           "name": "華榮",
           "close": 37.35,
-          "score": 59.0
+          "score": 43.0
+        },
+        {
+          "code": "1802",
+          "name": "台玻",
+          "close": 61.3,
+          "score": 40.3
+        },
+        {
+          "code": "1519",
+          "name": "華城",
+          "close": 761.0,
+          "score": 39.5
         },
         {
           "code": "3714",
           "name": "富采",
           "close": 62.5,
-          "score": 55.3
+          "score": 39.3
         },
         {
           "code": "4956",
           "name": "光鋐",
           "close": 36.2,
-          "score": 55.3
+          "score": 39.3
+        },
+        {
+          "code": "3049",
+          "name": "精金",
+          "close": 13.3,
+          "score": 39.0
+        },
+        {
+          "code": "3673",
+          "name": "TPK-KY",
+          "close": 67.8,
+          "score": 38.5
         },
         {
           "code": "2340",
           "name": "台亞",
           "close": 34.1,
-          "score": 53.3
+          "score": 37.3
+        },
+        {
+          "code": "3376",
+          "name": "新日興",
+          "close": 213.0,
+          "score": 37.2
         },
         {
           "code": "9921",
           "name": "巨大",
           "close": 102.5,
-          "score": 53.1
+          "score": 37.1
         },
         {
-          "code": "1605",
-          "name": "華新",
-          "close": 38.75,
-          "score": 51.9
-        },
-        {
-          "code": "6213",
-          "name": "聯茂",
-          "close": 550.0,
-          "score": 51.6
-        },
-        {
-          "code": "3135",
-          "name": "凌航",
-          "close": 173.0,
-          "score": 50.6
-        },
-        {
-          "code": "6672",
-          "name": "騰輝電子-KY",
-          "close": 278.5,
-          "score": 50.5
-        },
-        {
-          "code": "2615",
-          "name": "萬海",
-          "close": 114.5,
-          "score": 49.4
-        },
-        {
-          "code": "5471",
-          "name": "松翰",
-          "close": 61.4,
-          "score": 49.2
-        },
-        {
-          "code": "1711",
-          "name": "永光",
-          "close": 44.0,
-          "score": 48.5
-        },
-        {
-          "code": "6278",
-          "name": "台表科",
-          "close": 200.0,
-          "score": 48.2
-        },
-        {
-          "code": "2408",
-          "name": "南亞科",
-          "close": 518.0,
-          "score": 47.9
-        },
-        {
-          "code": "2399",
-          "name": "映泰",
-          "close": 46.15,
-          "score": 47.9
-        },
-        {
-          "code": "1504",
-          "name": "東元",
-          "close": 73.5,
-          "score": 47.5
-        },
-        {
-          "code": "8039",
-          "name": "台虹",
-          "close": 319.0,
-          "score": 46.7
-        },
-        {
-          "code": "2634",
-          "name": "漢翔",
-          "close": 67.0,
-          "score": 46.7
+          "code": "6531",
+          "name": "愛普*",
+          "close": 958.0,
+          "score": 36.8
         },
         {
           "code": "3167",
           "name": "大量",
           "close": 800.0,
-          "score": 46.6
+          "score": 36.6
         },
         {
-          "code": "1727",
-          "name": "中華化",
-          "close": 95.3,
-          "score": 46.5
+          "code": "6426",
+          "name": "統新",
+          "close": 270.0,
+          "score": 36.4
+        },
+        {
+          "code": "1605",
+          "name": "華新",
+          "close": 38.75,
+          "score": 35.9
+        },
+        {
+          "code": "6213",
+          "name": "聯茂",
+          "close": 550.0,
+          "score": 35.6
+        },
+        {
+          "code": "6706",
+          "name": "惠特",
+          "close": 127.0,
+          "score": 35.2
+        },
+        {
+          "code": "3135",
+          "name": "凌航",
+          "close": 173.0,
+          "score": 34.6
         }
       ]
     }

@@ -82,6 +82,13 @@ EXT_ATR_THRESHOLD = 2.5                  # ATR 延伸過遠
 NEAR_HIGH_PCT = 0.01                     # 距 20 日高點 1% 內視為延伸
 NEAR_LIMIT_PENALTY = 25.0
 BIG_UP_PENALTY = 12.0
+DEAD_TAPE_VOL = 0.85                 # 低於此視為沒人參與,不是「剛啟動」
+STRONG_VOL_RATIO = 1.00              # 強力推薦至少要有均量
+STRONG_EXCESS_5D = 0.0               # 近 5 日至少不輸大盤(百分點)
+SCALE_EXCESS_5D = -1.0               # 分批進場允許小幅落後
+CROWDING_STRONG_MIN = 22.0           # 擁擠過低 = 冷清,不是啟動
+CROWDING_STRONG_MAX = 50.0           # 擁擠過高 = 已經走一截
+DEAD_TAPE_PENALTY = 10.0             # 觀察分對冷清量能扣分,避免沒人買排第一
 
 ACTION_LABELS = {
     "strong_buy": "強力推薦",
@@ -428,6 +435,10 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
             + ext_p[i] * CROWDING_WEIGHTS["extension"]
         )
         score = structure - CROWDING_PENALTY * crowding - extra_penalty(r.change_pct)
+        if r.vol_raw is not None and not pd.isna(r.vol_raw) and r.vol_raw < DEAD_TAPE_VOL:
+            score -= DEAD_TAPE_PENALTY
+        if r.relative_raw is not None and not pd.isna(r.relative_raw) and r.relative_raw < 0:
+            score -= 6.0
         out.append(
             Candidate(
                 code=r.code,
@@ -466,6 +477,8 @@ def classify_action(c: Candidate) -> tuple[str, str]:
     rsi = d.get("rsi14")
     atr = d.get("atr_extension")
     above = d.get("above_ma20")
+    vol = d.get("vol_ratio_20d")
+    excess = d.get("excess_5d_pct")
     risks = set(c.risk_tags or [])
 
     if "接近漲停" in risks:
@@ -488,19 +501,34 @@ def classify_action(c: Candidate) -> tuple[str, str]:
     if c.crowding >= 70:
         return "trim", "擁擠分偏高,追價風險大"
 
+    dead_volume = vol is not None and vol < DEAD_TAPE_VOL
+    lagging = excess is not None and excess < SCALE_EXCESS_5D
+    if dead_volume or lagging:
+        bits = []
+        if dead_volume:
+            bits.append(f"量比 {vol}")
+        if lagging:
+            bits.append(f"近5日相對大盤 {excess}%")
+        return "watch", "、".join(bits) + ",比較像沒人買或相對弱,不是剛啟動"
+
     rsi_ok = rsi is not None and 50 <= rsi <= 65
     quiet_day = abs(c.change_pct) < 5
     not_extended = atr is None or atr < 1.5
+    vol_strong = vol is None or vol >= STRONG_VOL_RATIO
+    not_lagging = excess is None or excess >= STRONG_EXCESS_5D
+    crowding_moderate = CROWDING_STRONG_MIN <= c.crowding <= CROWDING_STRONG_MAX
     if (
         above
         and c.structure >= 68
-        and c.crowding <= 42
+        and crowding_moderate
         and rsi_ok
         and not risks
         and not_extended
         and quiet_day
+        and vol_strong
+        and not_lagging
     ):
-        return "strong_buy", "結構高、擁擠低、RSI 健康,比較像動能剛啟動"
+        return "strong_buy", "結構高、量能有跟上、沒明顯輸大盤,比較像動能剛啟動"
 
     rsi_scale = rsi is None or (48 <= rsi <= 70)
     if (
@@ -511,7 +539,7 @@ def classify_action(c: Candidate) -> tuple[str, str]:
         and c.change_pct < BIG_UP_PCT
         and (atr is None or atr < 2.2)
     ):
-        return "scale_in", "結構尚可但確認不夠齊,適合分批而不是一次買滿"
+        return "scale_in", "結構尚可且不是冷清量能,適合分批而不是一次買滿"
 
     return "watch", "條件好壞參半,先看不急著動"
 
@@ -548,7 +576,8 @@ def build_lazy_pack(candidates: list[Candidate]) -> dict:
     pack["counts"] = counts
     pack["note"] = (
         "這是同一套技術規則的分級建議,不是保證獲利的進出場點。"
-        "進場看結構剛啟動;出場假設你已經持有,未持有請忽略出場清單。"
+        "強力推薦需要量能跟上且近5日不輸大盤;沒人買的冷清改觀望。"
+        "出場假設你已經持有,未持有請忽略出場清單。"
         "任何買賣都是你自己的判斷與責任。"
     )
     return pack
@@ -670,7 +699,7 @@ def build_output(
             "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
             "rsi": "RSI(14, Wilder)",
             "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 接近漲停/今日大漲降權",
-            "actions": "強力推薦／分批進場看結構剛啟動;部分賣出／出清看擁擠與過熱,且假設已持有",
+            "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;冷清量能改觀望。出場假設已持有",
             "weights": {
                 "structure": STRUCTURE_WEIGHTS,
                 "crowding": CROWDING_WEIGHTS,
@@ -696,16 +725,16 @@ def build_demo_output(top_n: int) -> dict:
         ("2345", "智邦"), ("6446", "藥華藥"), ("2327", "國巨"), ("5347", "世界"),
     ]
     archetypes = [
-        {"structure": 78, "crowding": 28, "rsi": 57, "chg": 0.8, "atr": 0.4, "above": True, "risks": []},
-        {"structure": 72, "crowding": 36, "rsi": 54, "chg": -0.5, "atr": 0.6, "above": True, "risks": []},
-        {"structure": 64, "crowding": 48, "rsi": 61, "chg": 1.2, "atr": 1.1, "above": True, "risks": []},
-        {"structure": 58, "crowding": 52, "rsi": 66, "chg": 2.1, "atr": 1.4, "above": True, "risks": []},
-        {"structure": 50, "crowding": 44, "rsi": 49, "chg": -1.1, "atr": 0.2, "above": True, "risks": []},
-        {"structure": 42, "crowding": 60, "rsi": 46, "chg": -2.4, "atr": -0.3, "above": False, "risks": []},
-        {"structure": 55, "crowding": 74, "rsi": 72, "chg": 4.2, "atr": 1.8, "above": True, "risks": ["延伸過遠"]},
-        {"structure": 48, "crowding": 82, "rsi": 76, "chg": 7.4, "atr": 2.1, "above": True, "risks": ["今日大漲"]},
-        {"structure": 40, "crowding": 88, "rsi": 83, "chg": 9.7, "atr": 2.8, "above": True, "risks": ["接近漲停"]},
-        {"structure": 38, "crowding": 79, "rsi": 41, "chg": -6.2, "atr": -0.8, "above": False, "risks": ["放量長陰"]},
+        {"structure": 78, "crowding": 28, "rsi": 57, "chg": 0.8, "atr": 0.4, "above": True, "risks": [], "vol": 1.3, "excess": 1.2},
+        {"structure": 72, "crowding": 36, "rsi": 54, "chg": -0.5, "atr": 0.6, "above": True, "risks": [], "vol": 1.1, "excess": 0.4},
+        {"structure": 64, "crowding": 48, "rsi": 61, "chg": 1.2, "atr": 1.1, "above": True, "risks": [], "vol": 1.0, "excess": 0.2},
+        {"structure": 58, "crowding": 52, "rsi": 66, "chg": 2.1, "atr": 1.4, "above": True, "risks": [], "vol": 0.95, "excess": -0.3},
+        {"structure": 74, "crowding": 26, "rsi": 57, "chg": -0.9, "atr": 0.2, "above": True, "risks": [], "vol": 0.48, "excess": -4.3},
+        {"structure": 42, "crowding": 60, "rsi": 46, "chg": -2.4, "atr": -0.3, "above": False, "risks": [], "vol": 1.2, "excess": -1.5},
+        {"structure": 55, "crowding": 74, "rsi": 72, "chg": 4.2, "atr": 1.8, "above": True, "risks": ["延伸過遠"], "vol": 2.1, "excess": 3.0},
+        {"structure": 48, "crowding": 82, "rsi": 76, "chg": 7.4, "atr": 2.1, "above": True, "risks": ["今日大漲"], "vol": 2.4, "excess": 4.1},
+        {"structure": 40, "crowding": 88, "rsi": 83, "chg": 9.7, "atr": 2.8, "above": True, "risks": ["接近漲停"], "vol": 2.8, "excess": 6.0},
+        {"structure": 38, "crowding": 79, "rsi": 41, "chg": -6.2, "atr": -0.8, "above": False, "risks": ["放量長陰"], "vol": 2.2, "excess": -5.0},
     ]
     cands: list[Candidate] = []
     for i, (code, name) in enumerate(sample_names):
@@ -733,11 +762,11 @@ def build_demo_output(top_n: int) -> dict:
                 risk_tags=list(spec["risks"]),
                 detail={
                     "rsi14": spec["rsi"],
-                    "vol_ratio_20d": round(float(rng.uniform(0.8, 2.4)), 2),
+                    "vol_ratio_20d": float(spec.get("vol", round(float(rng.uniform(0.9, 1.8)), 2))),
                     "above_ma20": bool(spec["above"]),
                     "atr_extension": spec["atr"],
                     "dist_from_high_20d_pct": round(float(rng.uniform(0.3, 7.0)), 2),
-                    "excess_5d_pct": round(float(rng.uniform(-3, 5)), 2),
+                    "excess_5d_pct": float(spec.get("excess", round(float(rng.uniform(-0.5, 2.0)), 2))),
                     "factors": {
                         "trend": 70, "rsi": 70, "not_extended": 60,
                         "volume": 40, "relative": 40, "day_move": 40,
