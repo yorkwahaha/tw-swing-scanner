@@ -83,6 +83,21 @@ NEAR_HIGH_PCT = 0.01                     # 距 20 日高點 1% 內視為延伸
 NEAR_LIMIT_PENALTY = 25.0
 BIG_UP_PENALTY = 12.0
 
+ACTION_LABELS = {
+    "strong_buy": "強力推薦",
+    "scale_in": "分批進場",
+    "watch": "觀望",
+    "trim": "部分賣出",
+    "exit": "出清",
+}
+ACTION_CAPS = {
+    "strong_buy": 5,
+    "scale_in": 8,
+    "watch": 8,
+    "trim": 8,
+    "exit": 8,
+}
+
 # ---- 資料結構 -------------------------------------------------------------
 
 @dataclass
@@ -120,6 +135,9 @@ class Candidate:
     tags: list[str] = field(default_factory=list)
     risk_tags: list[str] = field(default_factory=list)
     detail: dict = field(default_factory=dict)
+    action: str = "watch"
+    action_label: str = "觀望"
+    reason: str = ""
 
 
 # ---- Stage 1: 全市場快照 ---------------------------------------------------
@@ -442,6 +460,100 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
     return out
 
 
+def classify_action(c: Candidate) -> tuple[str, str]:
+    """短線規則分級。出場是「若已持有」的假設,不是叫沒持股的人去放空。"""
+    d = c.detail or {}
+    rsi = d.get("rsi14")
+    atr = d.get("atr_extension")
+    above = d.get("above_ma20")
+    risks = set(c.risk_tags or [])
+
+    if "接近漲停" in risks:
+        return "exit", "接近漲停,短線空間被用完的機率高"
+    if "放量長陰" in risks:
+        return "exit", "放量長陰,偏高潮後回吐"
+    if rsi is not None and rsi > 80:
+        return "exit", f"RSI {rsi} 過熱"
+    if atr is not None and atr >= EXT_ATR_THRESHOLD:
+        return "exit", f"價格已延伸 {atr:.1f} 倍 ATR"
+    if above is False and c.crowding >= 55:
+        return "exit", "跌破均線且擁擠仍高,結構轉弱"
+
+    if "今日大漲" in risks:
+        return "trim", "今日大漲,若已持有考慮先減碼"
+    if "延伸過遠" in risks:
+        return "trim", "靠近高點或延伸過遠,建議部分停利"
+    if "短線過熱" in risks or (rsi is not None and rsi > 70):
+        return "trim", f"RSI {rsi} 偏熱,適合減碼而非加碼"
+    if c.crowding >= 70:
+        return "trim", "擁擠分偏高,追價風險大"
+
+    rsi_ok = rsi is not None and 50 <= rsi <= 65
+    quiet_day = abs(c.change_pct) < 5
+    not_extended = atr is None or atr < 1.5
+    if (
+        above
+        and c.structure >= 68
+        and c.crowding <= 42
+        and rsi_ok
+        and not risks
+        and not_extended
+        and quiet_day
+    ):
+        return "strong_buy", "結構高、擁擠低、RSI 健康,比較像動能剛啟動"
+
+    rsi_scale = rsi is None or (48 <= rsi <= 70)
+    if (
+        above
+        and c.structure >= 55
+        and c.crowding <= 58
+        and rsi_scale
+        and c.change_pct < BIG_UP_PCT
+        and (atr is None or atr < 2.2)
+    ):
+        return "scale_in", "結構尚可但確認不夠齊,適合分批而不是一次買滿"
+
+    return "watch", "條件好壞參半,先看不急著動"
+
+
+def assign_actions(candidates: list[Candidate]) -> None:
+    for c in candidates:
+        key, reason = classify_action(c)
+        c.action = key
+        c.action_label = ACTION_LABELS[key]
+        c.reason = reason
+
+
+def _action_sort_key(c: Candidate) -> tuple:
+    if c.action in ("trim", "exit"):
+        return (-c.crowding, -abs(c.change_pct), -c.score)
+    return (-c.score, c.crowding)
+
+
+def build_lazy_pack(candidates: list[Candidate]) -> dict:
+    buckets: dict[str, list[Candidate]] = {k: [] for k in ACTION_LABELS}
+    for c in candidates:
+        buckets[c.action].append(c)
+
+    pack = {}
+    counts = {}
+    for key, label in ACTION_LABELS.items():
+        items = sorted(buckets[key], key=_action_sort_key)
+        counts[key] = len(items)
+        pack[key] = {
+            "label": label,
+            "count": len(items),
+            "items": [candidate_payload(c) for c in items[: ACTION_CAPS[key]]],
+        }
+    pack["counts"] = counts
+    pack["note"] = (
+        "這是同一套技術規則的分級建議,不是保證獲利的進出場點。"
+        "進場看結構剛啟動;出場假設你已經持有,未持有請忽略出場清單。"
+        "任何買賣都是你自己的判斷與責任。"
+    )
+    return pack
+
+
 # ---- Stage 4: 組裝輸出 -----------------------------------------------------
 
 def taipei_today() -> str:
@@ -530,6 +642,9 @@ def candidate_payload(c: Candidate) -> dict:
         "structure": c.structure,
         "crowding": c.crowding,
         "score": c.score,
+        "action": c.action,
+        "action_label": c.action_label,
+        "reason": c.reason,
         "tags": c.tags,
         "risk_tags": c.risk_tags,
         "detail": c.detail,
@@ -555,6 +670,7 @@ def build_output(
             "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
             "rsi": "RSI(14, Wilder)",
             "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 接近漲停/今日大漲降權",
+            "actions": "強力推薦／分批進場看結構剛啟動;部分賣出／出清看擁擠與過熱,且假設已持有",
             "weights": {
                 "structure": STRUCTURE_WEIGHTS,
                 "crowding": CROWDING_WEIGHTS,
@@ -563,6 +679,7 @@ def build_output(
             "note": "本清單為技術面規則篩選結果,不構成投資建議,過去表現不代表未來績效。動能延續是持有期因子;結構分偏「剛啟動」,擁擠分偏「已經走遠」。",
         },
         "review": review,
+        "lazy_pack": build_lazy_pack(candidates),
         "candidates": [candidate_payload(c) for c in ranked],
     }
 
@@ -578,66 +695,63 @@ def build_demo_output(top_n: int) -> dict:
         ("1301", "台塑"), ("2891", "中信金"), ("2881", "富邦金"), ("3037", "欣興"),
         ("2345", "智邦"), ("6446", "藥華藥"), ("2327", "國巨"), ("5347", "世界"),
     ]
-    tag_pool = ["5/20MA黃金交叉", "成交量放大", "強於大盤", "RSI轉強"]
-    risk_pool = ["今日大漲", "延伸過遠", "短線過熱", "接近漲停"]
-    candidates = []
-    for code, name in sample_names[:top_n]:
-        structure = round(float(rng.uniform(45, 88)), 1)
-        crowding = round(float(rng.uniform(25, 85)), 1)
-        n_tags = int(rng.integers(1, 3))
-        tags = list(rng.choice(tag_pool, size=n_tags, replace=False))
-        risk_tags = []
-        if crowding > 70:
-            risk_tags = [str(rng.choice(risk_pool))]
-        candidates.append({
-            "code": code, "name": name,
-            "close": round(float(rng.uniform(30, 900)), 1),
-            "change_pct": round(float(rng.uniform(-3, 8)), 2),
-            "structure": structure,
-            "crowding": crowding,
-            "score": round(structure - CROWDING_PENALTY * crowding, 1),
-            "tags": tags,
-            "risk_tags": risk_tags,
-            "detail": {
-                "rsi14": round(float(rng.uniform(45, 78)), 1),
-                "vol_ratio_20d": round(float(rng.uniform(0.9, 2.6)), 2),
-                "above_ma20": bool(rng.random() > 0.2),
-                "atr_extension": round(float(rng.uniform(-0.5, 3.0)), 2),
-                "dist_from_high_20d_pct": round(float(rng.uniform(0.2, 8.0)), 2),
-                "excess_5d_pct": round(float(rng.uniform(-3, 6)), 2),
-                "factors": {
-                    "trend": round(float(rng.uniform(20, 90)), 0),
-                    "rsi": round(float(rng.uniform(20, 90)), 0),
-                    "not_extended": round(float(rng.uniform(20, 90)), 0),
-                    "volume": round(float(rng.uniform(20, 90)), 0),
-                    "relative": round(float(rng.uniform(20, 90)), 0),
-                    "day_move": round(float(rng.uniform(20, 90)), 0),
+    archetypes = [
+        {"structure": 78, "crowding": 28, "rsi": 57, "chg": 0.8, "atr": 0.4, "above": True, "risks": []},
+        {"structure": 72, "crowding": 36, "rsi": 54, "chg": -0.5, "atr": 0.6, "above": True, "risks": []},
+        {"structure": 64, "crowding": 48, "rsi": 61, "chg": 1.2, "atr": 1.1, "above": True, "risks": []},
+        {"structure": 58, "crowding": 52, "rsi": 66, "chg": 2.1, "atr": 1.4, "above": True, "risks": []},
+        {"structure": 50, "crowding": 44, "rsi": 49, "chg": -1.1, "atr": 0.2, "above": True, "risks": []},
+        {"structure": 42, "crowding": 60, "rsi": 46, "chg": -2.4, "atr": -0.3, "above": False, "risks": []},
+        {"structure": 55, "crowding": 74, "rsi": 72, "chg": 4.2, "atr": 1.8, "above": True, "risks": ["延伸過遠"]},
+        {"structure": 48, "crowding": 82, "rsi": 76, "chg": 7.4, "atr": 2.1, "above": True, "risks": ["今日大漲"]},
+        {"structure": 40, "crowding": 88, "rsi": 83, "chg": 9.7, "atr": 2.8, "above": True, "risks": ["接近漲停"]},
+        {"structure": 38, "crowding": 79, "rsi": 41, "chg": -6.2, "atr": -0.8, "above": False, "risks": ["放量長陰"]},
+    ]
+    cands: list[Candidate] = []
+    for i, (code, name) in enumerate(sample_names):
+        spec = archetypes[i] if i < len(archetypes) else {
+            "structure": round(float(rng.uniform(40, 75)), 1),
+            "crowding": round(float(rng.uniform(25, 70)), 1),
+            "rsi": round(float(rng.uniform(45, 70)), 1),
+            "chg": round(float(rng.uniform(-2, 3)), 2),
+            "atr": round(float(rng.uniform(-0.2, 1.6)), 2),
+            "above": True,
+            "risks": [],
+        }
+        structure = float(spec["structure"])
+        crowding = float(spec["crowding"])
+        cands.append(
+            Candidate(
+                code=code,
+                name=name,
+                close=round(float(rng.uniform(30, 900)), 1),
+                change_pct=float(spec["chg"]),
+                structure=structure,
+                crowding=crowding,
+                score=round(structure - CROWDING_PENALTY * crowding, 1),
+                tags=["強於大盤"] if crowding > 50 else [],
+                risk_tags=list(spec["risks"]),
+                detail={
+                    "rsi14": spec["rsi"],
+                    "vol_ratio_20d": round(float(rng.uniform(0.8, 2.4)), 2),
+                    "above_ma20": bool(spec["above"]),
+                    "atr_extension": spec["atr"],
+                    "dist_from_high_20d_pct": round(float(rng.uniform(0.3, 7.0)), 2),
+                    "excess_5d_pct": round(float(rng.uniform(-3, 5)), 2),
+                    "factors": {
+                        "trend": 70, "rsi": 70, "not_extended": 60,
+                        "volume": 40, "relative": 40, "day_move": 40,
+                    },
                 },
-            },
-        })
-    candidates.sort(key=lambda c: c["score"], reverse=True)
-
-    tz = timezone(timedelta(hours=8))
+            )
+        )
+    assign_actions(cands)
     as_of = taipei_today()
-    return {
-        "updated_at": datetime.now(tz).isoformat(),
-        "as_of": as_of,
-        "taiex_change_pct": round(float(rng.uniform(-1.5, 1.5)), 2),
-        "demo": True,
-        "price_source": "現價與漲跌幅來自證交所 STOCK_DAY_ALL 當日快照",
-        "indicator_source": "均線 / RSI(14, Wilder) / ATR / 量比 / 相對強弱來自 Yahoo Finance 歷史K線",
-        "methodology": {
-            "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
-            "rsi": "RSI(14, Wilder)",
-            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 接近漲停/今日大漲降權",
-            "weights": {
-                "structure": STRUCTURE_WEIGHTS,
-                "crowding": CROWDING_WEIGHTS,
-                "crowding_penalty": CROWDING_PENALTY,
-            },
-            "note": "這是 demo 假資料,僅供預覽畫面用,不是真實掃描結果。",
-        },
-        "review": {
+    output = build_output(
+        cands,
+        top_n,
+        round(float(rng.uniform(-1.5, 1.5)), 2),
+        {
             "prev_date": as_of,
             "n": top_n,
             "avg_return_1d": round(float(rng.uniform(-1.2, 1.8)), 2),
@@ -648,8 +762,11 @@ def build_demo_output(top_n: int) -> dict:
             "from_date_5d": None,
             "note": "demo 預覽用的假回顧數字。",
         },
-        "candidates": candidates,
-    }
+        as_of,
+    )
+    output["demo"] = True
+    output["methodology"]["note"] = "這是 demo 假資料,僅供預覽畫面用,不是真實掃描結果。"
+    return output
 
 
 # ---- main -------------------------------------------------------------
@@ -706,6 +823,7 @@ def main():
 
         print("[4/4] 排序並輸出...")
         candidates = rank_features(rows)
+        assign_actions(candidates)
         as_of = taipei_today()
         snap_path = snapshots_path_for(out_path)
         history = load_snapshots(snap_path)

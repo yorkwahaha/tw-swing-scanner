@@ -211,6 +211,111 @@
   }
   .weights span b{color:var(--text);}
 
+  /* ---- lazy pack ---- */
+  .lazy{
+    margin-top:28px;
+  }
+  .lazy > h2{
+    font-size:16px;
+    margin:0 0 6px;
+    font-weight:700;
+  }
+  .lazy-note{
+    color:var(--text-dim);
+    font-size:12.5px;
+    margin:0 0 16px;
+  }
+  .lazy-group-label{
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:.08em;
+    margin:16px 0 8px;
+  }
+  .lazy-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .lazy-col{
+    border:1px solid var(--rule);
+    background:var(--panel);
+    padding:12px;
+    min-height:80px;
+  }
+  .lazy-col h3{
+    margin:0 0 8px;
+    font-size:13px;
+    font-weight:700;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+  }
+  .lazy-col h3 .n{
+    font-family:var(--mono);
+    color:var(--text-dim);
+    font-weight:500;
+    font-size:11px;
+  }
+  .lazy-col.buy h3{color:var(--gold);}
+  .lazy-col.scale h3{color:var(--text);}
+  .lazy-col.watch-col h3{color:var(--text-dim);}
+  .lazy-col.watch-col{grid-column:1 / -1;}
+  .lazy-col.trim h3{color:var(--up);}
+  .lazy-col.exit h3{color:var(--up);}
+  .lazy-item{
+    padding:8px 0;
+    border-top:1px solid var(--rule);
+    font-size:13px;
+  }
+  .lazy-item:first-of-type{border-top:none;padding-top:0;}
+  .lazy-item .top{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    align-items:baseline;
+  }
+  .lazy-item .code{
+    font-family:var(--mono);
+    color:var(--text-dim);
+    font-size:12px;
+    margin-right:6px;
+  }
+  .lazy-item .px{
+    font-family:var(--mono);
+    font-size:12px;
+    white-space:nowrap;
+  }
+  .lazy-item .why{
+    color:var(--text-dim);
+    font-size:12px;
+    margin-top:2px;
+  }
+  .lazy-empty{
+    color:var(--text-dim);
+    font-size:12px;
+  }
+  .board-title{
+    font-size:16px;
+    font-weight:700;
+    margin:32px 0 8px;
+  }
+  .board-sub{
+    color:var(--text-dim);
+    font-size:12.5px;
+    margin:0 0 8px;
+  }
+  .action-flag{
+    font-family:var(--mono);
+    font-size:11px;
+    border:1px solid var(--rule);
+    padding:1px 6px;
+    margin-left:8px;
+    color:var(--text-dim);
+  }
+  .action-flag.strong_buy,.action-flag.scale_in{color:var(--gold);border-color:var(--gold);}
+  .action-flag.trim,.action-flag.exit{color:var(--up);border-color:var(--up);}
+
   @media (max-width:720px){
     .board-head{display:none;}
     .row-main{
@@ -227,6 +332,7 @@
     .col-crowd::before{content:"擁擠 ";color:var(--text-dim);}
     .col-tags{grid-column:1 / -1;justify-content:flex-start;}
     .row-factors{padding:0 10px 8px;}
+    .lazy-grid{grid-template-columns:1fr;}
   }
 
   @media (prefers-reduced-motion:no-preference){
@@ -246,7 +352,7 @@
 
 <div class="disclaimer">
   <div class="inner">
-    本清單由固定的技術指標規則自動產生,用來區分「動能剛啟動」與「動能已經走遠」,不是進場時機、也不是投資建議。過去的價量表現不代表未來績效,短線交易風險較高,進出場請自行判斷並自負風險。
+    本頁含「懶人包」規則分級與下方觀察清單,都不是投資建議,也不保證獲利。出場清單假設你已經持有該股票;沒持股請忽略。進出場請自行判斷並自負風險。
   </div>
 </div>
 
@@ -256,6 +362,28 @@
     <div class="review-nums" id="reviewNums"></div>
     <p class="note" id="reviewNote"></p>
   </div>
+
+  <div class="lazy" id="lazyBox">
+    <h2>懶人包 · 短線分級建議</h2>
+    <p class="lazy-note" id="lazyNote">進場看結構是否剛啟動;出場只供「若已持有」參考。規則自動分級,風險自負。</p>
+    <div class="lazy-group-label">進場建議</div>
+    <div class="lazy-grid">
+      <div class="lazy-col buy" id="pack-strong_buy"></div>
+      <div class="lazy-col scale" id="pack-scale_in"></div>
+    </div>
+    <div class="lazy-group-label">先看著</div>
+    <div class="lazy-grid">
+      <div class="lazy-col watch-col" id="pack-watch"></div>
+    </div>
+    <div class="lazy-group-label">出場建議（僅限已持有）</div>
+    <div class="lazy-grid">
+      <div class="lazy-col trim" id="pack-trim"></div>
+      <div class="lazy-col exit" id="pack-exit"></div>
+    </div>
+  </div>
+
+  <h2 class="board-title">觀察清單</h2>
+  <p class="board-sub">依觀察分排序,用來縮小範圍,不是依名次進場。</p>
 
   <div class="board">
     <div class="board-head">
@@ -390,6 +518,42 @@ function factorLine(detail) {
   return `<span>結構因子 ${struct}</span><span class="sep">/</span><span>擁擠因子 ${crowd}</span>${extras.length ? `<span class="sep">/</span><span>${extras.join(" ")}</span>` : ""}`;
 }
 
+function closeText(close) {
+  const n = Number(close);
+  return n.toFixed(n >= 100 ? 1 : 2);
+}
+
+function renderLazyPack(pack) {
+  const keys = [
+    ["strong_buy", "強力推薦", "今天沒有檔過強力推薦門檻"],
+    ["scale_in", "分批進場", "今天沒有檔適合分批"],
+    ["watch", "觀望", "今天沒有觀望名單"],
+    ["trim", "部分賣出", "今天沒有建議減碼的持有標的"],
+    ["exit", "出清", "今天沒有建議出清的持有標的"],
+  ];
+  if (pack && pack.note) {
+    document.getElementById("lazyNote").textContent = pack.note;
+  }
+  keys.forEach(([key, fallbackLabel, emptyText]) => {
+    const el = document.getElementById(`pack-${key}`);
+    const bucket = pack && pack[key];
+    const label = (bucket && bucket.label) || fallbackLabel;
+    const shown = (bucket && bucket.items) || [];
+    const total = bucket && typeof bucket.count === "number" ? bucket.count : shown.length;
+    const items = shown.map((c) => {
+      const changeCls = c.change_pct >= 0 ? "up" : "down";
+      return `<div class="lazy-item">
+        <div class="top">
+          <div><span class="code">${c.code}</span>${c.name}</div>
+          <div class="px">${closeText(c.close)} <span class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</span></div>
+        </div>
+        <div class="why">${c.reason || ""} · 結構 ${Number(c.structure || 0).toFixed(0)} / 擁擠 ${Number(c.crowding || 0).toFixed(0)}</div>
+      </div>`;
+    }).join("");
+    el.innerHTML = `<h3>${label}<span class="n">${shown.length}${total > shown.length ? ` / ${total}` : ""} 檔</span></h3>${items || `<div class="lazy-empty">${emptyText}</div>`}`;
+  });
+}
+
 function renderRows(candidates) {
   const rowsEl = document.getElementById("rows");
   const emptyEl = document.getElementById("emptyState");
@@ -405,13 +569,12 @@ function renderRows(candidates) {
     const crowdCls = (c.crowding || 0) >= 70 ? "high" : "";
     const cond = (c.tags || []).map(t => `<span class="tag hot">${t}</span>`).join("");
     const risk = (c.risk_tags || []).map(t => `<span class="tag risk">${t}</span>`).join("");
-    const close = Number(c.close);
     return `
       <div class="row">
         <div class="row-main">
           <div class="col-rank">${i + 1}</div>
-          <div class="col-name"><span class="code">${c.code}</span>${c.name}</div>
-          <div class="col-price">${close.toFixed(close >= 100 ? 1 : 2)}</div>
+          <div class="col-name"><span class="code">${c.code}</span>${c.name}${c.action_label ? `<span class="action-flag ${c.action || ""}">${c.action_label}</span>` : ""}</div>
+          <div class="col-price">${closeText(c.close)}</div>
           <div class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</div>
           <div class="col-struct">${Number(c.structure || 0).toFixed(0)}</div>
           <div class="col-crowd ${crowdCls}">${Number(c.crowding || 0).toFixed(0)}</div>
@@ -433,6 +596,7 @@ async function init() {
   }
   renderMeta(data);
   renderReview(data.review);
+  renderLazyPack(data.lazy_pack);
   renderWeights(data.methodology);
   renderRows(data.candidates || []);
   const methodEl = document.getElementById("methodBody");
