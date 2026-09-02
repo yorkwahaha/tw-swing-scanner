@@ -32,14 +32,14 @@
     -webkit-font-smoothing:antialiased;
   }
   a{color:inherit;}
-  .wrap{max-width:920px;margin:0 auto;padding:0 20px 64px;}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px 64px;}
 
   /* ---- header ---- */
   header{
     border-bottom:1px solid var(--rule);
     padding:28px 20px 20px;
   }
-  header .inner{max-width:920px;margin:0 auto;}
+  header .inner{max-width:960px;margin:0 auto;}
   h1{
     font-size:28px;
     font-weight:800;
@@ -81,25 +81,54 @@
     font-size:12.5px;
     padding:10px 20px;
   }
-  .disclaimer .inner{max-width:920px;margin:0 auto;}
+  .disclaimer .inner{max-width:960px;margin:0 auto;}
+
+  /* ---- review ---- */
+  .review{
+    margin-top:24px;
+    border:1px solid var(--rule);
+    background:var(--panel);
+    padding:14px 16px;
+    font-size:13px;
+    color:var(--text-dim);
+  }
+  .review h2{
+    font-size:13px;
+    color:var(--text);
+    margin:0 0 8px;
+    font-weight:700;
+  }
+  .review-nums{
+    font-family:var(--mono);
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    color:var(--text);
+  }
+  .review-nums b{font-weight:700;}
+  .review-nums .up{color:var(--up);}
+  .review-nums .down{color:var(--down);}
+  .review .note{margin:8px 0 0;font-size:12px;}
 
   /* ---- table ---- */
   .board{margin-top:28px;}
-  .board-head, .row{
+  .board-head, .row-main{
     display:grid;
-    grid-template-columns:40px 1fr 84px 84px 120px 1.4fr;
+    grid-template-columns:40px 1fr 76px 76px 64px 64px 1.3fr;
     gap:10px;
     align-items:center;
-    padding:12px 10px;
+    padding:12px 10px 6px;
   }
   .board-head{
     color:var(--text-dim);
     font-size:12px;
     border-bottom:1px solid var(--rule);
+    padding-bottom:12px;
   }
   .row{
     border-bottom:1px solid var(--rule);
     font-size:14px;
+    padding-bottom:10px;
   }
   .row:hover{background:var(--panel);}
   .col-rank{
@@ -114,25 +143,16 @@
     font-size:12.5px;
     margin-right:6px;
   }
-  .col-price, .col-change, .col-score{
+  .col-price, .col-change, .col-struct, .col-crowd{
     font-family:var(--mono);
     text-align:right;
     white-space:nowrap;
   }
   .col-change.up{color:var(--up);}
   .col-change.down{color:var(--down);}
-  .score-cell{display:flex;align-items:center;justify-content:flex-end;gap:8px;}
-  .score-bar{
-    width:56px;height:5px;
-    background:var(--rule);
-    border-radius:2px;
-    overflow:hidden;
-  }
-  .score-bar > span{
-    display:block;height:100%;
-    background:var(--gold);
-  }
-  .score-num{color:var(--gold);min-width:30px;}
+  .col-struct{color:var(--gold);}
+  .col-crowd{color:var(--text-dim);}
+  .col-crowd.high{color:var(--up);}
   .col-tags{
     display:flex;flex-wrap:wrap;gap:6px;
   }
@@ -146,6 +166,19 @@
     white-space:nowrap;
   }
   .tag.hot{color:var(--gold);border-color:var(--gold);}
+  .tag.risk{color:var(--up);border-color:var(--up);}
+  .row-factors{
+    grid-column:1 / -1;
+    padding:0 10px 4px 50px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-dim);
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .row-factors b{color:var(--text);font-weight:500;}
+  .row-factors .sep{opacity:.4;}
 
   .empty{
     padding:48px 10px;
@@ -178,24 +211,26 @@
   }
   .weights span b{color:var(--text);}
 
-  @media (max-width:640px){
+  @media (max-width:720px){
     .board-head{display:none;}
-    .row{
-      grid-template-columns:1fr;
-      gap:4px;
-      padding:14px 10px;
+    .row-main{
+      grid-template-columns:1fr 1fr;
+      gap:6px;
+      padding:14px 10px 6px;
     }
-    .row > div{display:flex;justify-content:space-between;}
-    .col-rank::before{content:"排名";color:var(--text-dim);}
-    .col-price::before{content:"現價";color:var(--text-dim);}
-    .col-change::before{content:"漲跌";color:var(--text-dim);}
-    .score-cell::before{content:"分數";color:var(--text-dim);}
-    .col-tags{justify-content:flex-end;}
+    .col-rank{text-align:left;}
+    .col-rank::before{content:"排名 ";color:var(--text-dim);}
+    .col-name{grid-column:1 / -1;}
+    .col-price::before{content:"現價 ";color:var(--text-dim);}
+    .col-change::before{content:"漲跌 ";color:var(--text-dim);}
+    .col-struct::before{content:"結構 ";color:var(--text-dim);}
+    .col-crowd::before{content:"擁擠 ";color:var(--text-dim);}
+    .col-tags{grid-column:1 / -1;justify-content:flex-start;}
+    .row-factors{padding:0 10px 8px;}
   }
 
   @media (prefers-reduced-motion:no-preference){
     .row{transition:background .15s ease;}
-    .score-bar > span{transition:width .4s ease;}
   }
 </style>
 </head>
@@ -211,19 +246,26 @@
 
 <div class="disclaimer">
   <div class="inner">
-    本清單由固定的技術指標規則自動產生(均線、RSI、量能、相對大盤強弱),不是投資建議,也不保證獲利。過去的價量表現不代表未來績效,短線交易風險較高,進出場請自行判斷並自負風險。
+    本清單由固定的技術指標規則自動產生,用來區分「動能剛啟動」與「動能已經走遠」,不是進場時機、也不是投資建議。過去的價量表現不代表未來績效,短線交易風險較高,進出場請自行判斷並自負風險。
   </div>
 </div>
 
 <div class="wrap">
+  <div class="review" id="reviewBox" style="display:none;">
+    <h2>昨日清單回顧</h2>
+    <div class="review-nums" id="reviewNums"></div>
+    <p class="note" id="reviewNote"></p>
+  </div>
+
   <div class="board">
     <div class="board-head">
       <div class="col-rank">名次</div>
       <div>股票</div>
       <div class="col-price">現價</div>
       <div class="col-change">漲跌幅</div>
-      <div class="col-score">分數</div>
-      <div>進場訊號</div>
+      <div class="col-struct">結構</div>
+      <div class="col-crowd">擁擠</div>
+      <div>觸發條件</div>
     </div>
     <div id="rows"></div>
     <div class="empty" id="emptyState" style="display:none;">今天沒有符合條件的標的,明天再來看看。</div>
@@ -231,34 +273,32 @@
 
   <div class="method">
     <h2>怎麼算出來的</h2>
-    <p>每天收盤後,先用證交所公開資料抓全上市股票的成交量與價格做流動性初篩,再對候選股票計算近 90 個交易日的均線、RSI、量能、相對大盤強弱等指標,合成一個 0–100 分的分數後由高到低排序。</p>
+    <p id="methodBody">每天收盤後,先用證交所公開資料抓全上市股票做流動性初篩,再對候選股票計算近 90 個交易日的均線、RSI(14, Wilder)、ATR 延伸、量能、相對大盤強弱。各因子在候選池內改成百分位,拆成結構分(趨勢剛對齊、RSI 健康、尚未過度延伸)與擁擠分(量已放大、已超額、當日波動、價格延伸)。觀察排序 = 結構 − 擁擠 × 0.5,接近漲停或今日大漲另外降權。</p>
     <div class="weights" id="weightsRow"></div>
-    <p>資料來源:台灣證券交易所 OpenAPI(當日快照)與 Yahoo Finance(歷史日K)。</p>
+    <p id="sourceBody">現價與漲跌幅來自台灣證券交易所當日快照;技術指標來自 Yahoo Finance 歷史K線,兩者可能有微小差異。</p>
   </div>
 </div>
 
 <script>
-// 供獨立預覽(沒有 data.json 可 fetch 時)使用的備援假資料
 const FALLBACK_DATA = {
   updated_at: null,
   taiex_change_pct: null,
   demo: true,
   methodology: {
-    weights: { trend: 0.30, momentum: 0.25, volume: 0.20, relative: 0.25 },
+    rsi: "RSI(14, Wilder)",
+    ranking: "觀察分 = 結構百分位 − 擁擠百分位 × 0.5",
+    weights: {
+      structure: { trend: 0.40, rsi: 0.35, not_extended: 0.25 },
+      crowding: { volume: 0.25, relative: 0.25, day_move: 0.25, extension: 0.25 },
+      crowding_penalty: 0.5,
+    },
   },
   candidates: []
 };
 
-const WEIGHT_LABELS = {
-  trend: "趨勢(均線)",
-  momentum: "動能(RSI)",
-  volume: "量能",
-  relative: "相對大盤強弱",
-};
-
 function fmtSigned(n, digits = 2) {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
-  const s = n.toFixed(digits);
+  const s = Number(n).toFixed(digits);
   return n > 0 ? `+${s}` : s;
 }
 
@@ -269,6 +309,11 @@ function fmtUpdatedAt(iso) {
   return `更新於 ${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function signedClass(n) {
+  if (typeof n !== "number" || Number.isNaN(n)) return "";
+  return n >= 0 ? "up" : "down";
+}
+
 function renderMeta(data) {
   const el = document.getElementById("metaRow");
   const parts = [];
@@ -277,17 +322,72 @@ function renderMeta(data) {
     const cls = data.taiex_change_pct >= 0 ? "taiex-up" : "taiex-down";
     parts.push(`<span class="dot">·</span><span class="${cls}">大盤 ${fmtSigned(data.taiex_change_pct)}%</span>`);
   }
-  parts.push(`<span class="dot">·</span>候選 ${data.candidates.length} 檔`);
+  const n = (data.candidates || []).length;
+  parts.push(`<span class="dot">·</span>候選 ${n} 檔`);
+  if (data.methodology && data.methodology.rsi) {
+    parts.push(`<span class="dot">·</span>${data.methodology.rsi}`);
+  }
   if (data.demo) parts.push(`<span class="demo-flag">DEMO 預覽資料</span>`);
   el.innerHTML = parts.join(" ");
 }
 
-function renderWeights(weights) {
+function renderReview(review) {
+  const box = document.getElementById("reviewBox");
+  if (!review || !review.prev_date) {
+    box.style.display = "none";
+    return;
+  }
+  box.style.display = "block";
+  const bits = [];
+  bits.push(`<span>對帳日 <b>${review.prev_date}</b></span>`);
+  if (typeof review.avg_return_1d === "number") {
+    bits.push(`<span>清單 1 日 <b class="${signedClass(review.avg_return_1d)}">${fmtSigned(review.avg_return_1d)}%</b>（${review.n} 檔）</span>`);
+  }
+  if (typeof review.taiex_return_1d === "number") {
+    bits.push(`<span>大盤 1 日 <b class="${signedClass(review.taiex_return_1d)}">${fmtSigned(review.taiex_return_1d)}%</b></span>`);
+  }
+  if (typeof review.excess_1d === "number") {
+    bits.push(`<span>超額 <b class="${signedClass(review.excess_1d)}">${fmtSigned(review.excess_1d)}%</b></span>`);
+  }
+  if (typeof review.avg_return_5d === "number") {
+    bits.push(`<span>清單 5 日 <b class="${signedClass(review.avg_return_5d)}">${fmtSigned(review.avg_return_5d)}%</b>（自 ${review.from_date_5d}）</span>`);
+  }
+  document.getElementById("reviewNums").innerHTML = bits.join("");
+  document.getElementById("reviewNote").textContent = review.note
+    || "這是規則的公開對帳,不是績效保證。第一個交易日尚無昨日清單。";
+}
+
+function renderWeights(method) {
   const el = document.getElementById("weightsRow");
-  if (!weights) return;
-  el.innerHTML = Object.entries(weights)
-    .map(([k, v]) => `<span>${WEIGHT_LABELS[k] || k} <b>${Math.round(v * 100)}%</b></span>`)
-    .join("");
+  if (!method) return;
+  const parts = [];
+  parts.push(`<span>結構分 <b>趨勢 40% · RSI 35% · 未延伸 25%</b></span>`);
+  parts.push(`<span>擁擠分 <b>量能 25% · 相對 25% · 當日 25% · 延伸 25%</b></span>`);
+  const penalty = method.weights && method.weights.crowding_penalty;
+  if (typeof penalty === "number") {
+    parts.push(`<span>擁擠懲罰 <b>× ${penalty}</b></span>`);
+  }
+  if (method.rsi) parts.push(`<span>${method.rsi}</span>`);
+  el.innerHTML = parts.join("");
+}
+
+function factorLine(detail) {
+  const f = (detail && detail.factors) || {};
+  const struct = [
+    ["trend", "趨勢"],
+    ["rsi", "RSI"],
+    ["not_extended", "未延伸"],
+  ].map(([k, label]) => `${label} <b>${f[k] != null ? Number(f[k]).toFixed(0) : "—"}</b>`).join(" ");
+  const crowd = [
+    ["volume", "量能"],
+    ["relative", "相對"],
+    ["day_move", "當日"],
+  ].map(([k, label]) => `${label} <b>${f[k] != null ? Number(f[k]).toFixed(0) : "—"}</b>`).join(" ");
+  const extras = [];
+  if (detail && detail.rsi14 != null) extras.push(`RSI值 <b>${detail.rsi14}</b>`);
+  if (detail && detail.vol_ratio_20d != null) extras.push(`量比 <b>${detail.vol_ratio_20d}</b>`);
+  if (detail && detail.atr_extension != null) extras.push(`ATR延伸 <b>${detail.atr_extension}</b>`);
+  return `<span>結構因子 ${struct}</span><span class="sep">/</span><span>擁擠因子 ${crowd}</span>${extras.length ? `<span class="sep">/</span><span>${extras.join(" ")}</span>` : ""}`;
 }
 
 function renderRows(candidates) {
@@ -295,26 +395,29 @@ function renderRows(candidates) {
   const emptyEl = document.getElementById("emptyState");
   if (!candidates.length) {
     emptyEl.style.display = "block";
+    rowsEl.innerHTML = "";
     return;
   }
   emptyEl.style.display = "none";
 
   rowsEl.innerHTML = candidates.map((c, i) => {
     const changeCls = c.change_pct >= 0 ? "up" : "down";
-    const tags = (c.tags || []).map(t =>
-      `<span class="tag${t === "短線過熱" ? "" : " hot"}">${t}</span>`
-    ).join("");
+    const crowdCls = (c.crowding || 0) >= 70 ? "high" : "";
+    const cond = (c.tags || []).map(t => `<span class="tag hot">${t}</span>`).join("");
+    const risk = (c.risk_tags || []).map(t => `<span class="tag risk">${t}</span>`).join("");
+    const close = Number(c.close);
     return `
       <div class="row">
-        <div class="col-rank">${i + 1}</div>
-        <div class="col-name"><span class="code">${c.code}</span>${c.name}</div>
-        <div class="col-price">${c.close.toFixed(1)}</div>
-        <div class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</div>
-        <div class="score-cell">
-          <div class="score-bar"><span style="width:${Math.max(0, Math.min(100, c.score))}%"></span></div>
-          <div class="score-num">${c.score.toFixed(0)}</div>
+        <div class="row-main">
+          <div class="col-rank">${i + 1}</div>
+          <div class="col-name"><span class="code">${c.code}</span>${c.name}</div>
+          <div class="col-price">${close.toFixed(close >= 100 ? 1 : 2)}</div>
+          <div class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</div>
+          <div class="col-struct">${Number(c.structure || 0).toFixed(0)}</div>
+          <div class="col-crowd ${crowdCls}">${Number(c.crowding || 0).toFixed(0)}</div>
+          <div class="col-tags">${cond}${risk}</div>
         </div>
-        <div class="col-tags">${tags}</div>
+        <div class="row-factors">${factorLine(c.detail)}</div>
       </div>`;
   }).join("");
 }
@@ -329,8 +432,15 @@ async function init() {
     data = FALLBACK_DATA;
   }
   renderMeta(data);
-  renderWeights(data.methodology && data.methodology.weights);
+  renderReview(data.review);
+  renderWeights(data.methodology);
   renderRows(data.candidates || []);
+  const methodEl = document.getElementById("methodBody");
+  if (data.methodology && data.methodology.ranking) {
+    methodEl.textContent = `排序規則:${data.methodology.ranking}。${data.methodology.note || ""}`;
+  }
+  const src = [data.price_source, data.indicator_source].filter(Boolean).join("。");
+  if (src) document.getElementById("sourceBody").textContent = src;
 }
 
 init();

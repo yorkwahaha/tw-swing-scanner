@@ -13,15 +13,17 @@
   2) 流動性初篩
      用今天的成交量、成交值、股價做粗篩,把幾千檔股票縮小到一個候選池
      (預設幾百檔),避免後面抓歷史資料時打爆 API。
+     MAX_PRICE 只排除極端高價股(報價/流動性),不是用來判斷「有沒有漲多」。
 
   3) 歷史資料 + 技術指標
-     對候選池裡的每一檔股票,用 yfinance 抓近 90 個交易日的日K,
-     計算均線、RSI、量能比、相對大盤強弱等指標。
+     對候選池用 yfinance 抓近 90 個交易日的日K,計算均線、Wilder RSI(14)、
+     ATR 延伸、量能比、相對大盤強弱。網頁上的現價/漲跌優先用證交所快照。
 
-  4) 綜合評分 + 輸出
-     把各項指標依權重合成一個 0~100 分的分數,由高到低排序,
-     取前 N 檔連同「進場訊號」標籤一起寫進 docs/data.json,
-     給前端網頁讀取顯示。
+  4) 結構分 / 擁擠分 + 輸出
+     動能延續本身是 1–2 週持有期的合法因子;這裡要區分的是
+     「動能剛啟動」(結構) vs 「動能已經走很遠」(擁擠)。
+     各因子在候選池內做百分位,結構高、擁擠中等者排前面。
+     接近漲停/今日大漲另外降權,並標成風險條件而不是加分。
 
 ★ 重要聲明
 本腳本純粹是「技術面規則篩選」的產物,篩選邏輯是很常見的動能/量能/均線
@@ -54,20 +56,57 @@ TAIEX_TICKER = "^TWII"
 
 MIN_TRADE_VOLUME_SHARES = 1_000_000     # 今日成交量下限(股),約 1,000 張
 MIN_PRICE = 10.0                         # 排除過度低價股
-MAX_PRICE = 2000.0                       # 排除極端高價股(避免權值股洗版)
+MAX_PRICE = 2000.0                       # 排除極端高價股(流動性/報價習慣),不是防追高
 CANDIDATE_POOL_SIZE = 300                # 進入歷史資料階段的候選檔數上限
 HISTORY_DAYS = "90d"                     # 抓多久的歷史K線
 TOP_N_DEFAULT = 20
+SNAPSHOTS_KEEP_DAYS = 30
 
-WEIGHTS = {
-    "trend": 0.30,       # 站上均線 + 短均在長均之上
-    "momentum": 0.25,    # RSI 落在健康動能區間
-    "volume": 0.20,      # 今日量能相對 20 日均量的放大程度
-    "relative": 0.25,    # 近 5 日報酬 相對 大盤的超額表現
+# 結構分:趨勢剛對齊、RSI 健康、價格尚未過度延伸
+STRUCTURE_WEIGHTS = {
+    "trend": 0.40,
+    "rsi": 0.35,
+    "not_extended": 0.25,
 }
-
+# 擁擠分:量已放大、相對大盤已超額、當日波動大、價格延伸
+CROWDING_WEIGHTS = {
+    "volume": 0.25,
+    "relative": 0.25,
+    "day_move": 0.25,
+    "extension": 0.25,
+}
+CROWDING_PENALTY = 0.50                  # 觀察分 = 結構 − 擁擠 × 此係數 − 額外降權
+NEAR_LIMIT_PCT = 9.5                     # 接近漲停(一般股 ±10%)
+BIG_UP_PCT = 7.0                         # 今日大漲
+EXT_ATR_THRESHOLD = 2.5                  # ATR 延伸過遠
+NEAR_HIGH_PCT = 0.01                     # 距 20 日高點 1% 內視為延伸
+NEAR_LIMIT_PENALTY = 25.0
+BIG_UP_PENALTY = 12.0
 
 # ---- 資料結構 -------------------------------------------------------------
+
+@dataclass
+class FeatureRow:
+    code: str
+    name: str
+    close: float
+    change_pct: float
+    trend_raw: float
+    rsi_health_raw: float
+    not_extended_raw: float
+    vol_raw: float
+    relative_raw: float
+    day_move_raw: float
+    extension_raw: float
+    rsi14: float | None
+    vol_ratio: float | None
+    above_ma20: bool
+    atr_extension: float | None
+    dist_from_high: float | None
+    excess_5d: float | None
+    tags: list[str] = field(default_factory=list)
+    risk_tags: list[str] = field(default_factory=list)
+
 
 @dataclass
 class Candidate:
@@ -75,8 +114,11 @@ class Candidate:
     name: str
     close: float
     change_pct: float
+    structure: float = 0.0
+    crowding: float = 0.0
     score: float = 0.0
     tags: list[str] = field(default_factory=list)
+    risk_tags: list[str] = field(default_factory=list)
     detail: dict = field(default_factory=dict)
 
 
@@ -144,14 +186,43 @@ def screen_candidates(df: pd.DataFrame) -> pd.DataFrame:
 
 # ---- Stage 3: 歷史資料 + 技術指標 -------------------------------------------
 
-def compute_rsi(close: pd.Series, period: int = 14) -> pd.Series:
+def compute_rsi_wilder(close: pd.Series, period: int = 14) -> pd.Series:
+    """Wilder RSI,與券商 / TradingView 常見 RSI(14) 對得上。"""
     delta = close.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
-    avg_gain = gain.rolling(period).mean()
-    avg_loss = loss.rolling(period).mean()
-    rs = avg_gain / avg_loss.replace(0, np.nan)
-    return 100 - (100 / (1 + rs))
+    avg_gain = gain.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    rsi = 100 - (100 / (1 + avg_gain / avg_loss.replace(0, np.nan)))
+    no_loss = avg_loss.fillna(0).eq(0)
+    rsi = rsi.mask(no_loss & avg_gain.gt(0), 100.0)
+    rsi = rsi.mask(no_loss & avg_gain.eq(0), 50.0)
+    return rsi
+
+
+def compute_atr_wilder(hist: pd.DataFrame, period: int = 14) -> pd.Series:
+    high = hist["High"]
+    low = hist["Low"]
+    close = hist["Close"]
+    prev_close = close.shift(1)
+    tr = pd.concat(
+        [
+            (high - low),
+            (high - prev_close).abs(),
+            (low - prev_close).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+    return tr.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+
+
+def rsi_health_raw(rsi: float) -> float:
+    """RSI 健康度:在 50–70 之間呈山形,峰值約 58,不是整段平台 100 分。"""
+    if pd.isna(rsi) or rsi < 40 or rsi > 80:
+        return 0.0
+    if rsi <= 58:
+        return (rsi - 40) / 18.0
+    return max(0.0, (75 - rsi) / 17.0)
 
 
 def fetch_history(codes: list[str]) -> dict[str, pd.DataFrame]:
@@ -171,7 +242,7 @@ def fetch_history(codes: list[str]) -> dict[str, pd.DataFrame]:
             sub = raw[ticker].dropna(how="all")
         except (KeyError, IndexError):
             continue
-        if len(sub) >= 25:  # 至少要有夠算 20 日均線的資料
+        if len(sub) >= 40:  # Wilder RSI/ATR 需要比 20 日均線更多的暖身
             out[code] = sub
 
     try:
@@ -182,119 +253,317 @@ def fetch_history(codes: list[str]) -> dict[str, pd.DataFrame]:
     return out
 
 
-def score_candidate(code: str, name: str, hist: pd.DataFrame, taiex: pd.DataFrame | None) -> Candidate | None:
+def extract_features(
+    code: str,
+    name: str,
+    hist: pd.DataFrame,
+    taiex: pd.DataFrame | None,
+    twse_close: float | None,
+    twse_change_pct: float | None,
+) -> FeatureRow | None:
     close = hist["Close"].dropna()
     volume = hist["Volume"].dropna()
-    if len(close) < 25:
+    if len(close) < 40:
         return None
 
     ma5 = close.rolling(5).mean()
     ma20 = close.rolling(20).mean()
-    rsi = compute_rsi(close, 14)
+    rsi = compute_rsi_wilder(close, 14)
+    atr = compute_atr_wilder(hist, 14)
     vol_avg20 = volume.rolling(20).mean()
+    high20 = hist["High"].rolling(20).max()
 
-    last_close = close.iloc[-1]
-    prev_close = close.iloc[-2]
-    change_pct = (last_close / prev_close - 1) * 100
+    last_close_yf = float(close.iloc[-1])
+    prev_close_yf = float(close.iloc[-2])
+    yf_change_pct = (last_close_yf / prev_close_yf - 1) * 100
 
-    tags: list[str] = []
+    display_close = float(twse_close) if twse_close is not None and not pd.isna(twse_close) else last_close_yf
+    display_change = (
+        float(twse_change_pct)
+        if twse_change_pct is not None and not pd.isna(twse_change_pct)
+        else yf_change_pct
+    )
 
-    # -- 趨勢: 站上短均且短均在長均之上 --
-    trend_ok = last_close > ma20.iloc[-1] and ma5.iloc[-1] > ma20.iloc[-1]
-    trend_score = 100 if trend_ok else max(0, 50 - abs(last_close - ma20.iloc[-1]) / ma20.iloc[-1] * 100)
+    last_ma5 = float(ma5.iloc[-1])
+    last_ma20 = float(ma20.iloc[-1])
+    last_rsi = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
+    last_atr = float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) and atr.iloc[-1] else None
+    last_high20 = float(high20.iloc[-1]) if not pd.isna(high20.iloc[-1]) and high20.iloc[-1] else None
 
-    # 近 3 日內是否剛發生 5/20 均線黃金交叉
-    cross_recent = False
-    diff_series = (ma5 - ma20).dropna()
-    if len(diff_series) >= 4:
-        recent = diff_series.iloc[-4:]
-        cross_recent = (recent.iloc[0] < 0) and (recent.iloc[-1] > 0)
-    if cross_recent:
-        tags.append("5/20MA黃金交叉")
-        trend_score = min(100, trend_score + 15)
+    vol_ratio = None
+    if vol_avg20.iloc[-1] and not pd.isna(vol_avg20.iloc[-1]):
+        vol_ratio = float(volume.iloc[-1] / vol_avg20.iloc[-1])
 
-    # -- 動能: RSI 落在健康偏強區間,且不是嚴重超買 --
-    last_rsi = rsi.iloc[-1]
-    if pd.isna(last_rsi):
-        momentum_score = 50
-    elif 50 <= last_rsi <= 70:
-        momentum_score = 100
-        if rsi.iloc[-2] < 50 <= last_rsi:
-            tags.append("RSI轉強")
-    elif 70 < last_rsi <= 80:
-        momentum_score = 65
-    elif last_rsi > 80:
-        momentum_score = 30
-        tags.append("短線過熱")
-    else:
-        momentum_score = max(0, last_rsi)  # RSI 偏低,動能偏弱
+    atr_extension = None
+    if last_atr:
+        atr_extension = (last_close_yf - last_ma20) / last_atr
 
-    # -- 量能: 今日量 / 20日均量 --
-    vol_ratio = volume.iloc[-1] / vol_avg20.iloc[-1] if vol_avg20.iloc[-1] else np.nan
-    if pd.isna(vol_ratio):
-        volume_score = 50
-    else:
-        volume_score = float(np.clip((vol_ratio - 0.8) / (2.5 - 0.8) * 100, 0, 100))
-        if vol_ratio >= 1.5:
-            tags.append("成交量放大")
+    dist_from_high = None
+    if last_high20:
+        dist_from_high = (last_high20 - last_close_yf) / last_high20
 
-    # -- 相對強弱: 近 5 日報酬 vs 大盤近 5 日報酬 --
-    relative_score = 50.0
+    excess_5d = None
     if taiex is not None and len(taiex["Close"].dropna()) >= 6 and len(close) >= 6:
         stock_5d = close.iloc[-1] / close.iloc[-6] - 1
         index_5d = taiex["Close"].dropna().iloc[-1] / taiex["Close"].dropna().iloc[-6] - 1
-        excess = stock_5d - index_5d
-        relative_score = float(np.clip(50 + excess * 1000, 0, 100))
-        if excess > 0:
-            tags.append("強於大盤")
+        excess_5d = float(stock_5d - index_5d)
 
-    total = (
-        trend_score * WEIGHTS["trend"]
-        + momentum_score * WEIGHTS["momentum"]
-        + volume_score * WEIGHTS["volume"]
-        + relative_score * WEIGHTS["relative"]
-    )
+    tags: list[str] = []
+    risk_tags: list[str] = []
 
-    return Candidate(
+    diff_series = (ma5 - ma20).dropna()
+    if len(diff_series) >= 4:
+        recent = diff_series.iloc[-4:]
+        if (recent.iloc[0] < 0) and (recent.iloc[-1] > 0):
+            tags.append("5/20MA黃金交叉")
+
+    if last_rsi is not None and len(rsi.dropna()) >= 2:
+        prev_rsi = float(rsi.dropna().iloc[-2])
+        if prev_rsi < 50 <= last_rsi:
+            tags.append("RSI轉強")
+        if last_rsi > 80:
+            risk_tags.append("短線過熱")
+
+    if vol_ratio is not None and vol_ratio >= 1.5:
+        tags.append("成交量放大")
+
+    if excess_5d is not None and excess_5d > 0:
+        tags.append("強於大盤")
+
+    if display_change >= NEAR_LIMIT_PCT:
+        risk_tags.append("接近漲停")
+    elif display_change >= BIG_UP_PCT:
+        risk_tags.append("今日大漲")
+
+    if display_change <= -5 and vol_ratio is not None and vol_ratio >= 1.8:
+        risk_tags.append("放量長陰")
+
+    if (atr_extension is not None and atr_extension >= EXT_ATR_THRESHOLD) or (
+        dist_from_high is not None and dist_from_high <= NEAR_HIGH_PCT
+    ):
+        risk_tags.append("延伸過遠")
+
+    trend_raw = (last_ma5 - last_ma20) / last_ma20 if last_ma20 else 0.0
+    rsi_raw = rsi_health_raw(last_rsi if last_rsi is not None else np.nan)
+    ext_for_crowd = atr_extension if atr_extension is not None else 0.0
+    not_extended_raw = -ext_for_crowd
+
+    return FeatureRow(
         code=code,
         name=name,
-        close=round(float(last_close), 2),
-        change_pct=round(float(change_pct), 2),
-        score=round(float(total), 1),
+        close=round(display_close, 2),
+        change_pct=round(float(display_change), 2),
+        trend_raw=float(trend_raw),
+        rsi_health_raw=float(rsi_raw),
+        not_extended_raw=float(not_extended_raw),
+        vol_raw=float(vol_ratio) if vol_ratio is not None else np.nan,
+        relative_raw=float(excess_5d) if excess_5d is not None else np.nan,
+        day_move_raw=float(abs(display_change)),
+        extension_raw=float(ext_for_crowd),
+        rsi14=None if last_rsi is None else round(last_rsi, 1),
+        vol_ratio=None if vol_ratio is None else round(vol_ratio, 2),
+        above_ma20=bool(last_close_yf > last_ma20),
+        atr_extension=None if atr_extension is None else round(atr_extension, 2),
+        dist_from_high=None if dist_from_high is None else round(dist_from_high * 100, 2),
+        excess_5d=None if excess_5d is None else round(excess_5d * 100, 2),
         tags=tags,
-        detail={
-            "rsi14": None if pd.isna(last_rsi) else round(float(last_rsi), 1),
-            "vol_ratio_20d": None if pd.isna(vol_ratio) else round(float(vol_ratio), 2),
-            "above_ma20": bool(last_close > ma20.iloc[-1]),
-        },
+        risk_tags=risk_tags,
     )
+
+
+def _pct_rank(values: list[float]) -> np.ndarray:
+    s = pd.Series(values, dtype=float)
+    return s.rank(method="average", pct=True, na_option="keep").fillna(0.5).to_numpy() * 100.0
+
+
+def extra_penalty(change_pct: float) -> float:
+    if change_pct >= NEAR_LIMIT_PCT:
+        return NEAR_LIMIT_PENALTY
+    if change_pct >= BIG_UP_PCT:
+        return BIG_UP_PENALTY
+    return 0.0
+
+
+def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
+    if not rows:
+        return []
+
+    trend_p = _pct_rank([r.trend_raw for r in rows])
+    rsi_p = _pct_rank([r.rsi_health_raw for r in rows])
+    n_ext_p = _pct_rank([r.not_extended_raw for r in rows])
+    vol_p = _pct_rank([r.vol_raw for r in rows])
+    rel_p = _pct_rank([r.relative_raw for r in rows])
+    day_p = _pct_rank([r.day_move_raw for r in rows])
+    ext_p = _pct_rank([r.extension_raw for r in rows])
+
+    out: list[Candidate] = []
+    for i, r in enumerate(rows):
+        structure = (
+            trend_p[i] * STRUCTURE_WEIGHTS["trend"]
+            + rsi_p[i] * STRUCTURE_WEIGHTS["rsi"]
+            + n_ext_p[i] * STRUCTURE_WEIGHTS["not_extended"]
+        )
+        crowding = (
+            vol_p[i] * CROWDING_WEIGHTS["volume"]
+            + rel_p[i] * CROWDING_WEIGHTS["relative"]
+            + day_p[i] * CROWDING_WEIGHTS["day_move"]
+            + ext_p[i] * CROWDING_WEIGHTS["extension"]
+        )
+        score = structure - CROWDING_PENALTY * crowding - extra_penalty(r.change_pct)
+        out.append(
+            Candidate(
+                code=r.code,
+                name=r.name,
+                close=r.close,
+                change_pct=r.change_pct,
+                structure=round(float(structure), 1),
+                crowding=round(float(crowding), 1),
+                score=round(float(score), 1),
+                tags=r.tags,
+                risk_tags=r.risk_tags,
+                detail={
+                    "rsi14": r.rsi14,
+                    "vol_ratio_20d": r.vol_ratio,
+                    "above_ma20": r.above_ma20,
+                    "atr_extension": r.atr_extension,
+                    "dist_from_high_20d_pct": r.dist_from_high,
+                    "excess_5d_pct": r.excess_5d,
+                    "factors": {
+                        "trend": round(float(trend_p[i]), 0),
+                        "rsi": round(float(rsi_p[i]), 0),
+                        "not_extended": round(float(n_ext_p[i]), 0),
+                        "volume": round(float(vol_p[i]), 0),
+                        "relative": round(float(rel_p[i]), 0),
+                        "day_move": round(float(day_p[i]), 0),
+                    },
+                },
+            )
+        )
+    return out
 
 
 # ---- Stage 4: 組裝輸出 -----------------------------------------------------
 
-def build_output(candidates: list[Candidate], top_n: int, taiex_change_pct: float | None) -> dict:
+def taipei_today() -> str:
+    tz = timezone(timedelta(hours=8))
+    return datetime.now(tz).date().isoformat()
+
+
+def snapshots_path_for(out_path: Path) -> Path:
+    return out_path.parent / "snapshots.json"
+
+
+def load_snapshots(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    days = data.get("days", [])
+    return days if isinstance(days, list) else []
+
+
+def save_snapshots(path: Path, days: list[dict]) -> None:
+    path.write_text(
+        json.dumps({"days": days[-SNAPSHOTS_KEEP_DAYS:]}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _avg_return(prev_candidates: list[dict], today_map: dict[str, float]) -> tuple[float | None, int]:
+    rets = []
+    for item in prev_candidates:
+        code = str(item.get("code", ""))
+        prev_close = item.get("close")
+        today_close = today_map.get(code)
+        if prev_close and today_close and prev_close > 0:
+            rets.append(today_close / prev_close - 1)
+    if not rets:
+        return None, 0
+    return round(float(np.mean(rets) * 100), 2), len(rets)
+
+
+def build_review(
+    history_days: list[dict],
+    today_df: pd.DataFrame,
+    today_date: str,
+    taiex_change_pct: float | None,
+) -> dict | None:
+    usable = [d for d in history_days if d.get("date") and d["date"] != today_date]
+    if not usable:
+        return None
+
+    today_map = dict(zip(today_df["code"].astype(str), today_df["close"].astype(float)))
+    prev = usable[-1]
+    avg_1d, n_1d = _avg_return(prev.get("candidates") or [], today_map)
+    review = {
+        "prev_date": prev["date"],
+        "n": n_1d,
+        "avg_return_1d": avg_1d,
+        "taiex_return_1d": taiex_change_pct,
+        "excess_1d": None
+        if avg_1d is None or taiex_change_pct is None
+        else round(avg_1d - taiex_change_pct, 2),
+        "avg_return_5d": None,
+        "n_5d": 0,
+        "from_date_5d": None,
+        "note": "清單報酬用證交所收盤價對帳;大盤日報酬來自 Yahoo Finance ^TWII。",
+    }
+
+    if len(usable) >= 5:
+        d5 = usable[-5]
+        avg_5d, n_5d = _avg_return(d5.get("candidates") or [], today_map)
+        review["from_date_5d"] = d5["date"]
+        review["avg_return_5d"] = avg_5d
+        review["n_5d"] = n_5d
+
+    return review
+
+
+def candidate_payload(c: Candidate) -> dict:
+    return {
+        "code": c.code,
+        "name": c.name,
+        "close": c.close,
+        "change_pct": c.change_pct,
+        "structure": c.structure,
+        "crowding": c.crowding,
+        "score": c.score,
+        "tags": c.tags,
+        "risk_tags": c.risk_tags,
+        "detail": c.detail,
+    }
+
+
+def build_output(
+    candidates: list[Candidate],
+    top_n: int,
+    taiex_change_pct: float | None,
+    review: dict | None,
+    as_of: str,
+) -> dict:
     ranked = sorted(candidates, key=lambda c: c.score, reverse=True)[:top_n]
-    tz = timezone(timedelta(hours=8))  # 台北時間
+    tz = timezone(timedelta(hours=8))
     return {
         "updated_at": datetime.now(tz).isoformat(),
+        "as_of": as_of,
         "taiex_change_pct": taiex_change_pct,
+        "price_source": "現價與漲跌幅來自證交所 STOCK_DAY_ALL 當日快照",
+        "indicator_source": "均線 / RSI(14, Wilder) / ATR / 量比 / 相對強弱來自 Yahoo Finance 歷史K線",
         "methodology": {
             "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
-            "weights": WEIGHTS,
-            "note": "本清單為技術面規則篩選結果,不構成投資建議,過去表現不代表未來績效。",
+            "rsi": "RSI(14, Wilder)",
+            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 接近漲停/今日大漲降權",
+            "weights": {
+                "structure": STRUCTURE_WEIGHTS,
+                "crowding": CROWDING_WEIGHTS,
+                "crowding_penalty": CROWDING_PENALTY,
+            },
+            "note": "本清單為技術面規則篩選結果,不構成投資建議,過去表現不代表未來績效。動能延續是持有期因子;結構分偏「剛啟動」,擁擠分偏「已經走遠」。",
         },
-        "candidates": [
-            {
-                "code": c.code,
-                "name": c.name,
-                "close": c.close,
-                "change_pct": c.change_pct,
-                "score": c.score,
-                "tags": c.tags,
-                "detail": c.detail,
-            }
-            for c in ranked
-        ],
+        "review": review,
+        "candidates": [candidate_payload(c) for c in ranked],
     }
 
 
@@ -309,34 +578,75 @@ def build_demo_output(top_n: int) -> dict:
         ("1301", "台塑"), ("2891", "中信金"), ("2881", "富邦金"), ("3037", "欣興"),
         ("2345", "智邦"), ("6446", "藥華藥"), ("2327", "國巨"), ("5347", "世界"),
     ]
-    tag_pool = ["5/20MA黃金交叉", "成交量放大", "強於大盤", "RSI轉強", "短線過熱"]
+    tag_pool = ["5/20MA黃金交叉", "成交量放大", "強於大盤", "RSI轉強"]
+    risk_pool = ["今日大漲", "延伸過遠", "短線過熱", "接近漲停"]
     candidates = []
     for code, name in sample_names[:top_n]:
-        score = round(float(rng.uniform(55, 92)), 1)
-        n_tags = rng.integers(1, 4)
+        structure = round(float(rng.uniform(45, 88)), 1)
+        crowding = round(float(rng.uniform(25, 85)), 1)
+        n_tags = int(rng.integers(1, 3))
         tags = list(rng.choice(tag_pool, size=n_tags, replace=False))
+        risk_tags = []
+        if crowding > 70:
+            risk_tags = [str(rng.choice(risk_pool))]
         candidates.append({
             "code": code, "name": name,
             "close": round(float(rng.uniform(30, 900)), 1),
             "change_pct": round(float(rng.uniform(-3, 8)), 2),
-            "score": score, "tags": tags,
+            "structure": structure,
+            "crowding": crowding,
+            "score": round(structure - CROWDING_PENALTY * crowding, 1),
+            "tags": tags,
+            "risk_tags": risk_tags,
             "detail": {
                 "rsi14": round(float(rng.uniform(45, 78)), 1),
                 "vol_ratio_20d": round(float(rng.uniform(0.9, 2.6)), 2),
                 "above_ma20": bool(rng.random() > 0.2),
+                "atr_extension": round(float(rng.uniform(-0.5, 3.0)), 2),
+                "dist_from_high_20d_pct": round(float(rng.uniform(0.2, 8.0)), 2),
+                "excess_5d_pct": round(float(rng.uniform(-3, 6)), 2),
+                "factors": {
+                    "trend": round(float(rng.uniform(20, 90)), 0),
+                    "rsi": round(float(rng.uniform(20, 90)), 0),
+                    "not_extended": round(float(rng.uniform(20, 90)), 0),
+                    "volume": round(float(rng.uniform(20, 90)), 0),
+                    "relative": round(float(rng.uniform(20, 90)), 0),
+                    "day_move": round(float(rng.uniform(20, 90)), 0),
+                },
             },
         })
     candidates.sort(key=lambda c: c["score"], reverse=True)
 
     tz = timezone(timedelta(hours=8))
+    as_of = taipei_today()
     return {
         "updated_at": datetime.now(tz).isoformat(),
+        "as_of": as_of,
         "taiex_change_pct": round(float(rng.uniform(-1.5, 1.5)), 2),
         "demo": True,
+        "price_source": "現價與漲跌幅來自證交所 STOCK_DAY_ALL 當日快照",
+        "indicator_source": "均線 / RSI(14, Wilder) / ATR / 量比 / 相對強弱來自 Yahoo Finance 歷史K線",
         "methodology": {
             "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
-            "weights": WEIGHTS,
+            "rsi": "RSI(14, Wilder)",
+            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 接近漲停/今日大漲降權",
+            "weights": {
+                "structure": STRUCTURE_WEIGHTS,
+                "crowding": CROWDING_WEIGHTS,
+                "crowding_penalty": CROWDING_PENALTY,
+            },
             "note": "這是 demo 假資料,僅供預覽畫面用,不是真實掃描結果。",
+        },
+        "review": {
+            "prev_date": as_of,
+            "n": top_n,
+            "avg_return_1d": round(float(rng.uniform(-1.2, 1.8)), 2),
+            "taiex_return_1d": round(float(rng.uniform(-1.5, 1.5)), 2),
+            "excess_1d": round(float(rng.uniform(-0.8, 1.2)), 2),
+            "avg_return_5d": None,
+            "n_5d": 0,
+            "from_date_5d": None,
+            "note": "demo 預覽用的假回顧數字。",
         },
         "candidates": candidates,
     }
@@ -374,18 +684,45 @@ def main():
             c = taiex_hist["Close"].dropna()
             taiex_change_pct = round(float((c.iloc[-1] / c.iloc[-2] - 1) * 100), 2)
 
-        candidates = []
-        name_map = dict(zip(pool["code"], pool["name"]))
+        twse_close_map = dict(zip(pool["code"].astype(str), pool["close"]))
+        twse_chg_map = dict(zip(pool["code"].astype(str), pool["change_pct"]))
+        name_map = dict(zip(pool["code"].astype(str), pool["name"]))
+
+        rows: list[FeatureRow] = []
         for code, hist in hist_map.items():
             if code == TAIEX_TICKER:
                 continue
-            cand = score_candidate(code, name_map.get(code, code), hist, taiex_hist)
-            if cand:
-                candidates.append(cand)
-        print(f"      成功計算指標: {len(candidates)} 檔")
+            feat = extract_features(
+                code,
+                name_map.get(code, code),
+                hist,
+                taiex_hist,
+                twse_close_map.get(code),
+                twse_chg_map.get(code),
+            )
+            if feat:
+                rows.append(feat)
+        print(f"      成功計算指標: {len(rows)} 檔")
 
         print("[4/4] 排序並輸出...")
-        output = build_output(candidates, args.top, taiex_change_pct)
+        candidates = rank_features(rows)
+        as_of = taipei_today()
+        snap_path = snapshots_path_for(out_path)
+        history = load_snapshots(snap_path)
+        review = build_review(history, snapshot, as_of, taiex_change_pct)
+        output = build_output(candidates, args.top, taiex_change_pct, review, as_of)
+
+        today_entry = {
+            "date": as_of,
+            "taiex_change_pct": taiex_change_pct,
+            "candidates": [
+                {"code": c.code, "name": c.name, "close": c.close, "score": c.score}
+                for c in sorted(candidates, key=lambda x: x.score, reverse=True)[: args.top]
+            ],
+        }
+        history = [d for d in history if d.get("date") != as_of]
+        history.append(today_entry)
+        save_snapshots(snap_path, history)
 
     out_path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"完成,已寫入 {out_path}")
