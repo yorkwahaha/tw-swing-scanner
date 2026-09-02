@@ -1,0 +1,343 @@
+{
+  "updated_at": "2026-09-02T12:06:56.675769+08:00",
+  "taiex_change_pct": 0.99,
+  "demo": true,
+  "methodology": {
+    "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
+    "weights": {
+      "trend": 0.3,
+      "momentum": 0.25,
+      "volume": 0.2,
+      "relative": 0.25
+    },
+    "note": "這是 demo 假資料,僅供預覽畫面用,不是真實掃描結果。"
+  },
+  "candidates": [
+    {
+      "code": "1301",
+      "name": "台塑",
+      "close": 261.3,
+      "change_pct": 7.66,
+      "score": 90.6,
+      "tags": [
+        "RSI轉強",
+        "強於大盤"
+      ],
+      "detail": {
+        "rsi14": 70.7,
+        "vol_ratio_20d": 2.12,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2345",
+      "name": "智邦",
+      "close": 49.8,
+      "change_pct": 7.54,
+      "score": 89.2,
+      "tags": [
+        "成交量放大",
+        "短線過熱",
+        "RSI轉強"
+      ],
+      "detail": {
+        "rsi14": 60.9,
+        "vol_ratio_20d": 2.23,
+        "above_ma20": false
+      }
+    },
+    {
+      "code": "3008",
+      "name": "大立光",
+      "close": 429.3,
+      "change_pct": 3.26,
+      "score": 84.1,
+      "tags": [
+        "短線過熱",
+        "RSI轉強",
+        "成交量放大"
+      ],
+      "detail": {
+        "rsi14": 49.6,
+        "vol_ratio_20d": 1.09,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2330",
+      "name": "台積電",
+      "close": 636.7,
+      "change_pct": -1.96,
+      "score": 83.6,
+      "tags": [
+        "成交量放大",
+        "強於大盤"
+      ],
+      "detail": {
+        "rsi14": 77.2,
+        "vol_ratio_20d": 2.19,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2412",
+      "name": "中華電",
+      "close": 292.3,
+      "change_pct": 3.93,
+      "score": 80.8,
+      "tags": [
+        "5/20MA黃金交叉",
+        "成交量放大"
+      ],
+      "detail": {
+        "rsi14": 56.9,
+        "vol_ratio_20d": 1.05,
+        "above_ma20": false
+      }
+    },
+    {
+      "code": "3661",
+      "name": "世芯-KY",
+      "close": 712.0,
+      "change_pct": 4.31,
+      "score": 79.5,
+      "tags": [
+        "強於大盤"
+      ],
+      "detail": {
+        "rsi14": 58.4,
+        "vol_ratio_20d": 2.28,
+        "above_ma20": false
+      }
+    },
+    {
+      "code": "5347",
+      "name": "世界",
+      "close": 826.9,
+      "change_pct": -0.47,
+      "score": 79.4,
+      "tags": [
+        "RSI轉強",
+        "短線過熱",
+        "強於大盤"
+      ],
+      "detail": {
+        "rsi14": 46.2,
+        "vol_ratio_20d": 1.84,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "6446",
+      "name": "藥華藥",
+      "close": 441.9,
+      "change_pct": -0.06,
+      "score": 73.0,
+      "tags": [
+        "短線過熱",
+        "RSI轉強",
+        "成交量放大"
+      ],
+      "detail": {
+        "rsi14": 55.9,
+        "vol_ratio_20d": 1.79,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2382",
+      "name": "廣達",
+      "close": 227.4,
+      "change_pct": 4.37,
+      "score": 72.4,
+      "tags": [
+        "成交量放大",
+        "5/20MA黃金交叉",
+        "短線過熱"
+      ],
+      "detail": {
+        "rsi14": 59.4,
+        "vol_ratio_20d": 2.32,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2379",
+      "name": "瑞昱",
+      "close": 511.6,
+      "change_pct": 3.15,
+      "score": 72.4,
+      "tags": [
+        "成交量放大",
+        "RSI轉強",
+        "5/20MA黃金交叉"
+      ],
+      "detail": {
+        "rsi14": 55.0,
+        "vol_ratio_20d": 0.95,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "3231",
+      "name": "緯創",
+      "close": 624.3,
+      "change_pct": 5.19,
+      "score": 72.3,
+      "tags": [
+        "強於大盤",
+        "5/20MA黃金交叉"
+      ],
+      "detail": {
+        "rsi14": 76.9,
+        "vol_ratio_20d": 1.45,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2603",
+      "name": "長榮",
+      "close": 280.8,
+      "change_pct": 4.51,
+      "score": 66.6,
+      "tags": [
+        "成交量放大",
+        "強於大盤",
+        "短線過熱"
+      ],
+      "detail": {
+        "rsi14": 49.6,
+        "vol_ratio_20d": 1.24,
+        "above_ma20": false
+      }
+    },
+    {
+      "code": "2891",
+      "name": "中信金",
+      "close": 815.3,
+      "change_pct": 2.01,
+      "score": 65.1,
+      "tags": [
+        "5/20MA黃金交叉"
+      ],
+      "detail": {
+        "rsi14": 51.7,
+        "vol_ratio_20d": 1.42,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "6669",
+      "name": "緯穎",
+      "close": 772.5,
+      "change_pct": -0.43,
+      "score": 62.9,
+      "tags": [
+        "強於大盤"
+      ],
+      "detail": {
+        "rsi14": 46.9,
+        "vol_ratio_20d": 1.38,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2881",
+      "name": "富邦金",
+      "close": 655.9,
+      "change_pct": 1.75,
+      "score": 61.5,
+      "tags": [
+        "RSI轉強",
+        "5/20MA黃金交叉"
+      ],
+      "detail": {
+        "rsi14": 65.7,
+        "vol_ratio_20d": 1.89,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "2317",
+      "name": "鴻海",
+      "close": 590.2,
+      "change_pct": 6.05,
+      "score": 59.7,
+      "tags": [
+        "短線過熱",
+        "強於大盤",
+        "成交量放大"
+      ],
+      "detail": {
+        "rsi14": 59.6,
+        "vol_ratio_20d": 1.29,
+        "above_ma20": true
+      }
+    },
+    {
+      "code": "3037",
+      "name": "欣興",
+      "close": 317.0,
+      "change_pct": -1.41,
+      "score": 58.1,
+      "tags": [
+        "RSI轉強",
+        "5/20MA黃金交叉",
+        "成交量放大"
+      ],
+      "detail": {
+        "rsi14": 48.4,
+        "vol_ratio_20d": 1.9,
+        "above_ma20": false
+      }
+    },
+    {
+      "code": "2454",
+      "name": "聯發科",
+      "close": 338.4,
+      "change_pct": 7.68,
+      "score": 57.4,
+      "tags": [
+        "RSI轉強",
+        "成交量放大",
+        "強於大盤"
+      ],
+      "detail": {
+        "rsi14": 74.5,
+        "vol_ratio_20d": 2.22,
+        "above_ma20": false
+      }
+    },
+    {
+      "code": "2308",
+      "name": "台達電",
+      "close": 658.5,
+      "change_pct": 2.08,
+      "score": 55.8,
+      "tags": [
+        "5/20MA黃金交叉"
+      ],
+      "detail": {
+        "rsi14": 50.3,
+        "vol_ratio_20d": 1.75,
+        "above_ma20": false
+      }
+    },
+    {
+      "code": "2327",
+      "name": "國巨",
+      "close": 152.0,
+      "change_pct": 3.09,
+      "score": 55.8,
+      "tags": [
+        "RSI轉強",
+        "5/20MA黃金交叉"
+      ],
+      "detail": {
+        "rsi14": 48.6,
+        "vol_ratio_20d": 2.04,
+        "above_ma20": true
+      }
+    }
+  ]
+}

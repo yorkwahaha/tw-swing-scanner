@@ -1,0 +1,36 @@
+name: 每日掃描臺股短線觀察清單
+
+on:
+  schedule:
+    # 06:30 UTC = 14:30 台北時間,平日(週一~週五)收盤後執行
+    - cron: "30 6 * * 1-5"
+  workflow_dispatch: {}   # 允許手動在 GitHub 網頁上點「Run workflow」測試
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scanner
+        run: python scanner.py --top 20 --out docs/data.json
+
+      - name: Commit updated data.json
+        run: |
+          git config user.name "tw-swing-scanner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/data.json
+          git diff --quiet --cached || git commit -m "chore: 更新每日觀察清單 $(date -u +%Y-%m-%d)"
+          git push
