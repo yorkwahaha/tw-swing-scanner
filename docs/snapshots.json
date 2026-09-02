@@ -125,6 +125,132 @@
           "score": 34.6
         }
       ]
+    },
+    {
+      "date": "2026-09-03",
+      "taiex_change_pct": 1.78,
+      "candidates": [
+        {
+          "code": "9921",
+          "name": "巨大",
+          "close": 102.5,
+          "score": 46.9
+        },
+        {
+          "code": "6442",
+          "name": "光聖",
+          "close": 1635.0,
+          "score": 45.3
+        },
+        {
+          "code": "8996",
+          "name": "高力",
+          "close": 1175.0,
+          "score": 43.6
+        },
+        {
+          "code": "3673",
+          "name": "TPK-KY",
+          "close": 67.8,
+          "score": 43.0
+        },
+        {
+          "code": "3135",
+          "name": "凌航",
+          "close": 173.0,
+          "score": 41.2
+        },
+        {
+          "code": "4967",
+          "name": "十銓",
+          "close": 276.0,
+          "score": 41.0
+        },
+        {
+          "code": "1802",
+          "name": "台玻",
+          "close": 61.3,
+          "score": 40.8
+        },
+        {
+          "code": "3605",
+          "name": "宏致",
+          "close": 125.5,
+          "score": 40.1
+        },
+        {
+          "code": "6672",
+          "name": "騰輝電子-KY",
+          "close": 278.5,
+          "score": 39.9
+        },
+        {
+          "code": "2465",
+          "name": "麗臺",
+          "close": 95.8,
+          "score": 39.2
+        },
+        {
+          "code": "1605",
+          "name": "華新",
+          "close": 38.75,
+          "score": 37.9
+        },
+        {
+          "code": "1808",
+          "name": "潤隆",
+          "close": 34.85,
+          "score": 37.9
+        },
+        {
+          "code": "2399",
+          "name": "映泰",
+          "close": 46.15,
+          "score": 37.8
+        },
+        {
+          "code": "2464",
+          "name": "盟立",
+          "close": 184.5,
+          "score": 37.6
+        },
+        {
+          "code": "8046",
+          "name": "南電",
+          "close": 1225.0,
+          "score": 37.4
+        },
+        {
+          "code": "4956",
+          "name": "光鋐",
+          "close": 36.2,
+          "score": 37.2
+        },
+        {
+          "code": "6451",
+          "name": "訊芯-KY",
+          "close": 455.0,
+          "score": 36.7
+        },
+        {
+          "code": "3504",
+          "name": "揚明光",
+          "close": 87.2,
+          "score": 36.4
+        },
+        {
+          "code": "2408",
+          "name": "南亞科",
+          "close": 518.0,
+          "score": 36.3
+        },
+        {
+          "code": "3034",
+          "name": "聯詠",
+          "close": 552.0,
+          "score": 36.3
+        }
+      ]
     }
   ]
 }

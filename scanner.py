@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
@@ -89,6 +90,11 @@ SCALE_EXCESS_5D = -1.0               # 分批進場允許小幅落後
 CROWDING_STRONG_MIN = 22.0           # 擁擠過低 = 冷清,不是啟動
 CROWDING_STRONG_MAX = 50.0           # 擁擠過高 = 已經走一截
 DEAD_TAPE_PENALTY = 10.0             # 觀察分對冷清量能扣分,避免沒人買排第一
+STOP_ATR = 1.5                       # 停損距離(×ATR),常見波動停損
+TP1_R = 1.5                          # 第一停利 = 1.5 倍風險
+TP2_R = 2.5                          # 第二停利 = 2.5 倍風險
+ENTRY_ATR_PULLBACK = 0.5             # 進場下緣最多往下等 0.5×ATR
+HORIZON = "5–10 個交易日"
 
 ACTION_LABELS = {
     "strong_buy": "強力推薦",
@@ -126,6 +132,11 @@ class FeatureRow:
     atr_extension: float | None
     dist_from_high: float | None
     excess_5d: float | None
+    atr_abs: float | None = None
+    ma5: float | None = None
+    ma20: float | None = None
+    swing_low_10: float | None = None
+    swing_high_20: float | None = None
     tags: list[str] = field(default_factory=list)
     risk_tags: list[str] = field(default_factory=list)
 
@@ -145,6 +156,7 @@ class Candidate:
     action: str = "watch"
     action_label: str = "觀望"
     reason: str = ""
+    plan: dict | None = None
 
 
 # ---- Stage 1: 全市場快照 ---------------------------------------------------
@@ -297,6 +309,7 @@ def extract_features(
     atr = compute_atr_wilder(hist, 14)
     vol_avg20 = volume.rolling(20).mean()
     high20 = hist["High"].rolling(20).max()
+    low10 = hist["Low"].rolling(10).min()
 
     last_close_yf = float(close.iloc[-1])
     prev_close_yf = float(close.iloc[-2])
@@ -314,6 +327,7 @@ def extract_features(
     last_rsi = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
     last_atr = float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) and atr.iloc[-1] else None
     last_high20 = float(high20.iloc[-1]) if not pd.isna(high20.iloc[-1]) and high20.iloc[-1] else None
+    last_low10 = float(low10.iloc[-1]) if not pd.isna(low10.iloc[-1]) and low10.iloc[-1] else None
 
     vol_ratio = None
     if vol_avg20.iloc[-1] and not pd.isna(vol_avg20.iloc[-1]):
@@ -391,6 +405,11 @@ def extract_features(
         atr_extension=None if atr_extension is None else round(atr_extension, 2),
         dist_from_high=None if dist_from_high is None else round(dist_from_high * 100, 2),
         excess_5d=None if excess_5d is None else round(excess_5d * 100, 2),
+        atr_abs=None if last_atr is None else round(last_atr, 4),
+        ma5=round(last_ma5, 4),
+        ma20=round(last_ma20, 4),
+        swing_low_10=None if last_low10 is None else round(last_low10, 4),
+        swing_high_20=None if last_high20 is None else round(last_high20, 4),
         tags=tags,
         risk_tags=risk_tags,
     )
@@ -457,6 +476,11 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
                     "atr_extension": r.atr_extension,
                     "dist_from_high_20d_pct": r.dist_from_high,
                     "excess_5d_pct": r.excess_5d,
+                    "atr": r.atr_abs,
+                    "ma5": None if r.ma5 is None else round(r.ma5, 2),
+                    "ma20": None if r.ma20 is None else round(r.ma20, 2),
+                    "swing_low_10": None if r.swing_low_10 is None else round(r.swing_low_10, 2),
+                    "swing_high_20": None if r.swing_high_20 is None else round(r.swing_high_20, 2),
                     "factors": {
                         "trend": round(float(trend_p[i]), 0),
                         "rsi": round(float(rsi_p[i]), 0),
@@ -550,6 +574,99 @@ def assign_actions(candidates: list[Candidate]) -> None:
         c.action = key
         c.action_label = ACTION_LABELS[key]
         c.reason = reason
+        if key in ("strong_buy", "scale_in"):
+            c.plan = build_trade_plan(c)
+        else:
+            c.plan = None
+
+
+def twse_tick(price: float) -> float:
+    if price < 10:
+        return 0.01
+    if price < 50:
+        return 0.05
+    if price < 100:
+        return 0.10
+    if price < 500:
+        return 0.50
+    if price < 1000:
+        return 1.0
+    return 5.0
+
+
+def round_tick(price: float, mode: str = "nearest") -> float:
+    if price <= 0:
+        return 0.0
+    tick = twse_tick(price)
+    n = price / tick
+    if mode == "down":
+        n = math.floor(n + 1e-9)
+    elif mode == "up":
+        n = math.ceil(n - 1e-9)
+    else:
+        n = round(n)
+    return round(n * tick, 4)
+
+
+def build_trade_plan(c: Candidate) -> dict | None:
+    """公開可覆核的短線計畫:ATR 停損 + 波段低點 + 固定 R 倍數停利。"""
+    d = c.detail or {}
+    atr = d.get("atr")
+    ma5 = d.get("ma5")
+    ma20 = d.get("ma20")
+    low10 = d.get("swing_low_10")
+    high20 = d.get("swing_high_20")
+    close = float(c.close)
+    if not atr or atr <= 0 or close <= 0:
+        return None
+
+    if ma5 is not None and 0 < ma5 < close:
+        entry_low = max(float(ma5), close - ENTRY_ATR_PULLBACK * atr)
+    else:
+        entry_low = close - 0.3 * atr
+    entry_high = close
+    if entry_low >= entry_high:
+        entry_low = close - 0.3 * atr
+    entry_low = round_tick(entry_low, "down")
+    entry_high = round_tick(entry_high, "nearest")
+    if entry_low > entry_high:
+        entry_low = entry_high
+    entry_mid = (entry_low + entry_high) / 2
+
+    stop_atr = entry_low - STOP_ATR * atr
+    stop = stop_atr
+    if low10:
+        swing = float(low10) - twse_tick(float(low10))
+        if swing < entry_low:
+            # 短線用較近的停損:10日低點若離入場不超過 2.5×ATR,才採用
+            if 0 < (entry_low - swing) <= 2.5 * atr:
+                stop = max(stop_atr, swing)
+    stop = round_tick(stop, "down")
+    if stop >= entry_low:
+        stop = round_tick(entry_low - STOP_ATR * atr, "down")
+    if stop >= entry_low or entry_mid <= stop:
+        return None
+
+    risk = entry_mid - stop
+    tp1 = round_tick(entry_mid + TP1_R * risk, "up")
+    tp2 = round_tick(entry_mid + TP2_R * risk, "up")
+    return {
+        "horizon": HORIZON,
+        "entry_low": entry_low,
+        "entry_high": entry_high,
+        "stop": stop,
+        "tp1": tp1,
+        "tp2": tp2,
+        "resistance_20d": None if not high20 else round_tick(float(high20), "nearest"),
+        "invalid_below": None if not ma20 else round_tick(float(ma20), "down"),
+        "atr": round(float(atr), 4),
+        "risk_pct": round(risk / entry_mid * 100, 2),
+        "tp1_pct": round((tp1 - entry_mid) / entry_mid * 100, 2),
+        "tp2_pct": round((tp2 - entry_mid) / entry_mid * 100, 2),
+        "rr1": TP1_R,
+        "rr2": TP2_R,
+        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且仍在2.5×ATR內則改用結構停損;停利1.5R/2.5R。跳動單位依證交所規定。",
+    }
 
 
 def _action_sort_key(c: Candidate) -> tuple:
@@ -574,6 +691,21 @@ def build_lazy_pack(candidates: list[Candidate]) -> dict:
             "items": [candidate_payload(c) for c in items[: ACTION_CAPS[key]]],
         }
     pack["counts"] = counts
+    entry_rows = []
+    for key in ("strong_buy", "scale_in"):
+        for c in sorted(buckets[key], key=_action_sort_key):
+            if c.plan:
+                entry_rows.append(candidate_payload(c))
+            if len(entry_rows) >= 12:
+                break
+        if len(entry_rows) >= 12:
+            break
+    pack["trade_table"] = entry_rows
+    pack["trade_method"] = (
+        "沒有法人籌碼或某分析師內部模型。進場區間=現價回檔至5日均線附近;"
+        "停損預設1.5×Wilder ATR,10日低點只在距離夠近時才用;停利=1.5R/2.5R。"
+        "參考持有5–10個交易日,收盤跌破20日均線視為結構失效。風險自負。"
+    )
     pack["note"] = (
         "這是同一套技術規則的分級建議,不是保證獲利的進出場點。"
         "強力推薦需要量能跟上且近5日不輸大盤;沒人買的冷清改觀望。"
@@ -674,6 +806,7 @@ def candidate_payload(c: Candidate) -> dict:
         "action": c.action,
         "action_label": c.action_label,
         "reason": c.reason,
+        "plan": c.plan,
         "tags": c.tags,
         "risk_tags": c.risk_tags,
         "detail": c.detail,
@@ -700,6 +833,7 @@ def build_output(
             "rsi": "RSI(14, Wilder)",
             "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 接近漲停/今日大漲降權",
             "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;冷清量能改觀望。出場假設已持有",
+            "trade_plan": "進場等回檔至MA5;停損1.5×ATR(近10日低點僅在距離短時採用);停利1.5R/2.5R。不是法人大數據或特定分析師模型。",
             "weights": {
                 "structure": STRUCTURE_WEIGHTS,
                 "crowding": CROWDING_WEIGHTS,
@@ -749,11 +883,13 @@ def build_demo_output(top_n: int) -> dict:
         }
         structure = float(spec["structure"])
         crowding = float(spec["crowding"])
+        px = round(float(rng.uniform(30, 200)), 1)
+        atr_abs = round(px * 0.025, 2)
         cands.append(
             Candidate(
                 code=code,
                 name=name,
-                close=round(float(rng.uniform(30, 900)), 1),
+                close=px,
                 change_pct=float(spec["chg"]),
                 structure=structure,
                 crowding=crowding,
@@ -767,6 +903,11 @@ def build_demo_output(top_n: int) -> dict:
                     "atr_extension": spec["atr"],
                     "dist_from_high_20d_pct": round(float(rng.uniform(0.3, 7.0)), 2),
                     "excess_5d_pct": float(spec.get("excess", round(float(rng.uniform(-0.5, 2.0)), 2))),
+                    "atr": atr_abs,
+                    "ma5": round(px * 0.985, 2),
+                    "ma20": round(px * 0.97, 2),
+                    "swing_low_10": round(px * 0.94, 2),
+                    "swing_high_20": round(px * 1.05, 2),
                     "factors": {
                         "trend": 70, "rsi": 70, "not_extended": 60,
                         "volume": 40, "relative": 40, "day_move": 40,

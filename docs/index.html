@@ -316,6 +316,43 @@
   .action-flag.strong_buy,.action-flag.scale_in{color:var(--gold);border-color:var(--gold);}
   .action-flag.trim,.action-flag.exit{color:var(--up);border-color:var(--up);}
 
+  .plan-wrap{margin-top:28px;overflow-x:auto;}
+  .plan-wrap h2{
+    font-size:16px;
+    margin:0 0 6px;
+    font-weight:700;
+  }
+  .plan-note{
+    color:var(--text-dim);
+    font-size:12.5px;
+    margin:0 0 12px;
+  }
+  .plan-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  .plan-table th{
+    text-align:left;
+    color:var(--text-dim);
+    font-weight:500;
+    font-size:12px;
+    border-bottom:1px solid var(--rule);
+    padding:8px 8px 8px 0;
+    white-space:nowrap;
+  }
+  .plan-table td{
+    border-bottom:1px solid var(--rule);
+    padding:10px 8px 10px 0;
+    vertical-align:top;
+    font-family:var(--mono);
+    font-size:12.5px;
+  }
+  .plan-table td.name{font-family:var(--sans);}
+  .plan-table .stop{color:var(--down);}
+  .plan-table .tp{color:var(--gold);}
+  .plan-empty{color:var(--text-dim);font-size:13px;padding:12px 0;}
+
   @media (max-width:720px){
     .board-head{display:none;}
     .row-main{
@@ -352,7 +389,7 @@
 
 <div class="disclaimer">
   <div class="inner">
-    本頁含「懶人包」規則分級與下方觀察清單,都不是投資建議,也不保證獲利。出場清單假設你已經持有該股票;沒持股請忽略。進出場請自行判斷並自負風險。
+    本頁只提供可覆核的價量規則與區間,不是投資建議,也不保證獲利。沒有法人籌碼或特定分析師內部模型。出場清單假設你已經持有;進出場請自行判斷並自負風險。
   </div>
 </div>
 
@@ -380,6 +417,13 @@
       <div class="lazy-col trim" id="pack-trim"></div>
       <div class="lazy-col exit" id="pack-exit"></div>
     </div>
+  </div>
+
+  <div class="plan-wrap">
+    <h2>超級懶人包 · 進場區間與停利停損</h2>
+    <p class="plan-note" id="planNote">進場等回檔,停損用 ATR 與波段低點,停利用固定風險報酬。今天若沒有進場名單,表會是空的。</p>
+    <table class="plan-table" id="planTable"></table>
+    <div class="plan-empty" id="planEmpty" style="display:none;">今天沒有通過進場門檻的標的,因此沒有進出場區間。</div>
   </div>
 
   <h2 class="board-title">觀察清單</h2>
@@ -554,6 +598,60 @@ function renderLazyPack(pack) {
   });
 }
 
+function px(n) {
+  if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
+  return closeText(n);
+}
+
+function renderTradeTable(pack) {
+  const table = document.getElementById("planTable");
+  const empty = document.getElementById("planEmpty");
+  const note = document.getElementById("planNote");
+  if (pack && pack.trade_method) note.textContent = pack.trade_method;
+  const rows = (pack && pack.trade_table) || [];
+  if (!rows.length) {
+    table.innerHTML = "";
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>分級</th>
+        <th>股票</th>
+        <th>現價</th>
+        <th>進場區間</th>
+        <th>停損</th>
+        <th>停利1 (1.5R)</th>
+        <th>停利2 (2.5R)</th>
+        <th>風險</th>
+        <th>20日壓力</th>
+        <th>失效</th>
+        <th>天數</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((c) => {
+        const p = c.plan || {};
+        const entry = p.entry_low != null ? `${px(p.entry_low)}–${px(p.entry_high)}` : "—";
+        return `<tr>
+          <td>${c.action_label || ""}</td>
+          <td class="name"><span class="code">${c.code}</span> ${c.name}</td>
+          <td>${px(c.close)}</td>
+          <td>${entry}</td>
+          <td class="stop">${px(p.stop)}${p.risk_pct != null ? ` (${p.risk_pct}%)` : ""}</td>
+          <td class="tp">${px(p.tp1)}${p.tp1_pct != null ? ` (+${p.tp1_pct}%)` : ""}</td>
+          <td class="tp">${px(p.tp2)}${p.tp2_pct != null ? ` (+${p.tp2_pct}%)` : ""}</td>
+          <td>${p.risk_pct != null ? p.risk_pct + "%" : "—"}</td>
+          <td>${px(p.resistance_20d)}</td>
+          <td>收盤跌破 ${px(p.invalid_below)}</td>
+          <td>${p.horizon || "5–10 日"}</td>
+        </tr>`;
+      }).join("")}
+    </tbody>`;
+}
+
 function renderRows(candidates) {
   const rowsEl = document.getElementById("rows");
   const emptyEl = document.getElementById("emptyState");
@@ -597,6 +695,7 @@ async function init() {
   renderMeta(data);
   renderReview(data.review);
   renderLazyPack(data.lazy_pack);
+  renderTradeTable(data.lazy_pack);
   renderWeights(data.methodology);
   renderRows(data.candidates || []);
   const methodEl = document.getElementById("methodBody");
