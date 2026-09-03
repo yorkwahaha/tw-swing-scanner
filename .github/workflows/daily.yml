@@ -2,8 +2,8 @@ name: 每日掃描臺股短線觀察清單
 
 on:
   schedule:
-    # 06:30 UTC = 14:30 台北時間,平日(週一~週五)收盤後執行
-    - cron: "30 6 * * 1-5"
+    # 08:00 UTC = 16:00 台北時間,平日收盤後跑,等 Yahoo / 法人報表較齊
+    - cron: "0 8 * * 1-5"
   workflow_dispatch: {}   # 允許手動在 GitHub 網頁上點「Run workflow」測試
 
 permissions:

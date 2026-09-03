@@ -6,29 +6,31 @@
 這支腳本做的事情很單純,分四個階段:
 
   1) 全市場快照
-     呼叫 TWSE 官方 OpenAPI STOCK_DAY_ALL,一次拿到「今天」所有上市股票的
-     收盤價、漲跌、成交量,不需要對每檔股票各打一次 API。
-     文件: https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+     優先用證交所官網盤後 STOCK_DAY_ALL(當日),失敗才退回 OpenAPI。
+     一次拿到該交易日所有上市股票與 ETF 的收盤價、漲跌、成交量/成交金額。
+     官網: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL
+     OpenAPI: https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
 
   2) 流動性初篩
-     用今天的成交量、成交值、股價做粗篩,把幾千檔股票縮小到一個候選池
-     (預設幾百檔),避免後面抓歷史資料時打爆 API。
+     用今天的成交量、成交值、股價做粗篩,並剔除處置股與變更交易(全額交割等)。
      MAX_PRICE 只排除極端高價股(報價/流動性),不是用來判斷「有沒有漲多」。
 
   3) 歷史資料 + 技術指標
-     對候選池用 yfinance 抓近 90 個交易日的日K,計算均線、Wilder RSI(14)、
-     ATR 延伸、量能比、相對大盤強弱。網頁上的現價/漲跌優先用證交所快照。
+     對候選池用 yfinance 抓近 1 年日K,計算均線、Wilder RSI(14)、
+     ATR 延伸、量能比、相對大盤強弱。若 Yahoo 缺當日 K 棒,用證交所 OHLC 補上。
+     網頁上的現價/漲跌優先用證交所快照。另抓三大法人(T86)當日與近三日投信。
 
   4) 結構分 / 擁擠分 + 輸出
      動能延續本身是 1–2 週持有期的合法因子;這裡要區分的是
      「動能剛啟動」(結構) vs 「動能已經走很遠」(擁擠)。
      各因子在候選池內做百分位,結構高、擁擠中等者排前面。
-     接近漲停/今日大漲另外降權,並標成風險條件而不是加分。
+     接近漲停/今日大漲/暴跌另外降權,並標成風險條件而不是加分。
 
 ★ 重要聲明
-本腳本純粹是「技術面規則篩選」的產物,篩選邏輯是很常見的動能/量能/均線
-組合,不是什麼獨門秘技,也不構成投資建議。過去的價量表現不保證未來報酬,
-短線交易風險本來就高,任何進出場決定都是你自己的判斷與責任。
+本腳本純粹是「技術面規則 + 公開籌碼」篩選的產物,篩選邏輯是很常見的
+動能/量能/均線/法人買賣超組合,不是什麼獨門秘技,也不構成投資建議。
+過去的價量表現不保證未來報酬,短線交易風險本來就高,任何進出場決定
+都是你自己的判斷與責任。
 
 用法:
     python scanner.py                 # 正式模式,會打 TWSE + yfinance
@@ -39,8 +41,10 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import math
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
@@ -50,18 +54,30 @@ import numpy as np
 import pandas as pd
 import requests
 
-TWSE_STOCK_DAY_ALL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
+TWSE_DAY_ALL_OFFICIAL = "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL"
+TWSE_DAY_ALL_OPENAPI = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
+TWSE_MI_INDEX = "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX"
+TWSE_T86 = "https://www.twse.com.tw/rwd/zh/fund/T86"
+TWSE_PUNISH = "https://openapi.twse.com.tw/v1/announcement/punish"
+TWSE_ALTERED = "https://openapi.twse.com.tw/v1/exchangeReport/TWT85U"
 TAIEX_TICKER = "^TWII"
+HTTP_HEADERS = {
+    "User-Agent": "tw-swing-scanner/1.1 (github.com/yorkwahaha/tw-swing-scanner)",
+    "Accept": "application/json,text/csv,*/*",
+}
 
 # ---- 可調參數 -----------------------------------------------------------
 
 MIN_TRADE_VOLUME_SHARES = 1_000_000     # 今日成交量下限(股),約 1,000 張
-MIN_PRICE = 10.0                         # 排除過度低價股
+MIN_ETF_TRADE_VALUE = 80_000_000        # ETF 成交金額下限(元);量少但成交值夠仍可進
+MIN_PRICE = 10.0                         # 普通股排除過度低價股
+MIN_ETF_PRICE = 5.0                      # ETF 允許較低價
 MAX_PRICE = 2000.0                       # 排除極端高價股(流動性/報價習慣),不是防追高
 CANDIDATE_POOL_SIZE = 300                # 進入歷史資料階段的候選檔數上限
-HISTORY_DAYS = "90d"                     # 抓多久的歷史K線
+HISTORY_DAYS = "1y"                      # Wilder RSI/ATR 需要足夠暖身才接近券商數值
 TOP_N_DEFAULT = 20
 SNAPSHOTS_KEEP_DAYS = 30
+EXIT_LOOKBACK_DAYS = 10
 
 # 結構分:趨勢剛對齊、RSI 健康、價格尚未過度延伸
 STRUCTURE_WEIGHTS = {
@@ -79,6 +95,8 @@ CROWDING_WEIGHTS = {
 CROWDING_PENALTY = 0.50                  # 觀察分 = 結構 − 擁擠 × 此係數 − 額外降權
 NEAR_LIMIT_PCT = 9.5                     # 接近漲停(一般股 ±10%)
 BIG_UP_PCT = 7.0                         # 今日大漲
+BIG_DOWN_PCT = -7.0                      # 今日大跌
+NEAR_LIMIT_DOWN_PCT = -9.5               # 接近跌停
 EXT_ATR_THRESHOLD = 2.5                  # ATR 延伸過遠
 NEAR_HIGH_PCT = 0.01                     # 距 20 日高點 1% 內視為延伸
 NEAR_LIMIT_PENALTY = 25.0
@@ -91,10 +109,20 @@ CROWDING_STRONG_MIN = 22.0           # 擁擠過低 = 冷清,不是啟動
 CROWDING_STRONG_MAX = 50.0           # 擁擠過高 = 已經走一截
 DEAD_TAPE_PENALTY = 10.0             # 觀察分對冷清量能扣分,避免沒人買排第一
 STOP_ATR = 1.5                       # 停損距離(×ATR),常見波動停損
+MIN_STOP_ATR = 1.0                   # 結構停損也至少要有 1×ATR,避免摩擦成本吃掉 R
+MIN_STOP_PCT = 2.5                   # 或至少 2.5%,不夠繳手續費+交易稅就不做
 TP1_R = 1.5                          # 第一停利 = 1.5 倍風險
 TP2_R = 2.5                          # 第二停利 = 2.5 倍風險
 ENTRY_ATR_PULLBACK = 0.5             # 進場下緣最多往下等 0.5×ATR
 HORIZON = "5–10 個交易日"
+TRUST_SCORE_BONUS = 3.0              # 當日投信買超加分
+TRUST_STREAK_BONUS = 6.0             # 投信連 3 日買超加分
+BOTH_BUY_BONUS = 4.0                 # 外資+投信同步買超
+BOTH_SELL_PENALTY = 6.0              # 外資投信同步賣超扣分
+
+ETF_CODE_RE = re.compile(r"^00[0-9]{2,4}[A-Z]?$")
+STOCK_CODE_RE = re.compile(r"^[1-9]\d{3}$")
+LEVERAGE_ETF_RE = re.compile(r"^00\d{3}[LR]$")
 
 ACTION_LABELS = {
     "strong_buy": "強力推薦",
@@ -119,6 +147,7 @@ class FeatureRow:
     name: str
     close: float
     change_pct: float
+    kind: str
     trend_raw: float
     rsi_health_raw: float
     not_extended_raw: float
@@ -137,6 +166,9 @@ class FeatureRow:
     ma20: float | None = None
     swing_low_10: float | None = None
     swing_high_20: float | None = None
+    trust_net: int | None = None
+    foreign_net: int | None = None
+    trust_streak: int = 0
     tags: list[str] = field(default_factory=list)
     risk_tags: list[str] = field(default_factory=list)
 
@@ -147,6 +179,7 @@ class Candidate:
     name: str
     close: float
     change_pct: float
+    kind: str = "stock"
     structure: float = 0.0
     crowding: float = 0.0
     score: float = 0.0
@@ -159,65 +192,314 @@ class Candidate:
     plan: dict | None = None
 
 
+# ---- 小工具 ----------------------------------------------------------------
+
+def taipei_now() -> datetime:
+    return datetime.now(timezone(timedelta(hours=8)))
+
+
+def taipei_today() -> str:
+    return taipei_now().date().isoformat()
+
+
+def roc_to_iso(raw: str) -> str:
+    s = re.sub(r"[^\d]", "", str(raw or ""))
+    if len(s) == 7:
+        return f"{int(s[:3]) + 1911:04d}-{s[3:5]}-{s[5:7]}"
+    if len(s) == 8:
+        return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+    raise ValueError(f"無法解析日期: {raw}")
+
+
+def to_float_series(s: pd.Series) -> pd.Series:
+    return pd.to_numeric(
+        s.astype(str).str.replace(",", "", regex=False).str.replace("X", "", regex=False).str.replace("+", "", regex=False),
+        errors="coerce",
+    )
+
+
+def parse_int(raw) -> int:
+    try:
+        return int(str(raw).replace(",", "").replace("+", "").strip() or 0)
+    except ValueError:
+        return 0
+
+
+def security_kind(code: str) -> str | None:
+    code = str(code).strip().upper()
+    if ETF_CODE_RE.fullmatch(code):
+        return "etf"
+    if STOCK_CODE_RE.fullmatch(code):
+        return "stock"
+    return None
+
+
+def is_leveraged_or_inverse(code: str, name: str) -> bool:
+    code = str(code).strip().upper()
+    name = str(name)
+    if any(k in name for k in ("槓桿", "反向", "正向二倍", "負向")):
+        return True
+    return bool(LEVERAGE_ETF_RE.fullmatch(code))
+
+
+def http_get(url: str, **kwargs) -> requests.Response:
+    kwargs.setdefault("timeout", 30)
+    kwargs.setdefault("headers", HTTP_HEADERS)
+    return requests.get(url, **kwargs)
+
+
+def normalize_ohlcv_index(hist: pd.DataFrame) -> pd.DataFrame:
+    df = hist.copy()
+    df.index = _as_naive_dates(df.index)
+    df = df[~df.index.duplicated(keep="last")]
+    return df.dropna(subset=["Close"])
+
+
+def overlay_last_bar(hist: pd.DataFrame, as_of: str, bar: dict | None) -> pd.DataFrame:
+    """Yahoo 常缺當日收盤;用證交所 OHLC 覆寫/補上同一交易日。"""
+    df = normalize_ohlcv_index(hist)
+    if not bar or bar.get("close") is None or pd.isna(bar.get("close")):
+        return df
+    ts = pd.Timestamp(as_of)
+    new = {c: (df.loc[ts, c] if ts in df.index else np.nan) for c in df.columns}
+    mapping = {
+        "Open": bar.get("open"),
+        "High": bar.get("high"),
+        "Low": bar.get("low"),
+        "Close": bar.get("close"),
+        "Adj Close": bar.get("close"),
+        "Volume": bar.get("volume"),
+    }
+    for col, val in mapping.items():
+        if col in df.columns and val is not None and not pd.isna(val):
+            new[col] = val
+    df.loc[ts] = pd.Series(new)
+    return df.sort_index()
+
+
+def _as_naive_dates(idx) -> pd.DatetimeIndex:
+    idx = pd.to_datetime(idx)
+    if getattr(idx, "tz", None) is not None:
+        idx = idx.tz_convert("Asia/Taipei").tz_localize(None)
+    return idx.normalize()
+
+
+def excess_return(stock_close: pd.Series, index_close: pd.Series, days: int = 5) -> float | None:
+    a = stock_close.copy()
+    b = index_close.copy()
+    a.index = _as_naive_dates(a.index)
+    b.index = _as_naive_dates(b.index)
+    joined = pd.concat([a.rename("s"), b.rename("i")], axis=1, join="inner").dropna()
+    if len(joined) < days + 1:
+        return None
+    stock_n = joined["s"].iloc[-1] / joined["s"].iloc[-(days + 1)] - 1
+    index_n = joined["i"].iloc[-1] / joined["i"].iloc[-(days + 1)] - 1
+    return float(stock_n - index_n)
+
+
 # ---- Stage 1: 全市場快照 ---------------------------------------------------
 
-def fetch_market_snapshot() -> pd.DataFrame:
-    """呼叫 TWSE STOCK_DAY_ALL,回傳今日全上市股票快照的 DataFrame。"""
-    resp = requests.get(TWSE_STOCK_DAY_ALL, timeout=30)
+def _snapshot_from_official() -> pd.DataFrame:
+    resp = http_get(TWSE_DAY_ALL_OFFICIAL, params={"response": "open_data"})
+    resp.raise_for_status()
+    text = resp.content.decode("utf-8-sig", errors="replace")
+    df = pd.read_csv(io.StringIO(text), dtype=str)
+    rename = {
+        "日期": "Date",
+        "證券代號": "Code",
+        "證券名稱": "Name",
+        "成交股數": "TradeVolume",
+        "成交金額": "TradeValue",
+        "開盤價": "OpeningPrice",
+        "最高價": "HighestPrice",
+        "最低價": "LowestPrice",
+        "收盤價": "ClosingPrice",
+        "漲跌價差": "Change",
+        "成交筆數": "Transaction",
+    }
+    df = df.rename(columns=rename)
+    if df.empty:
+        raise RuntimeError("證交所官網 STOCK_DAY_ALL 回傳空資料。")
+    return df
+
+
+def _snapshot_from_openapi() -> pd.DataFrame:
+    resp = http_get(TWSE_DAY_ALL_OPENAPI)
     resp.raise_for_status()
     raw = resp.json()
-
     if not raw:
-        raise RuntimeError("TWSE STOCK_DAY_ALL 回傳空資料,可能是非交易日或 API 異常。")
+        raise RuntimeError("TWSE OpenAPI STOCK_DAY_ALL 回傳空資料。")
+    return pd.DataFrame(raw)
 
-    df = pd.DataFrame(raw)
 
-    # TWSE 的欄位名稱偶爾會有出入,這裡做一個保守的容錯:
-    # 找不到預期欄位時,把原始欄位印出來方便排錯,而不是直接爛掉。
+def _normalize_snapshot(df: pd.DataFrame) -> pd.DataFrame:
     expected = {"Code", "Name", "ClosingPrice", "TradeVolume", "Change"}
     missing = expected - set(df.columns)
     if missing:
         print(f"[警告] STOCK_DAY_ALL 缺少預期欄位 {missing},實際欄位: {list(df.columns)}",
               file=sys.stderr)
-        print("[提示] 請對照官方文件更新欄位對應: "
-              "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", file=sys.stderr)
 
-    def to_float(s):
-        return pd.to_numeric(
-            s.astype(str).str.replace(",", "", regex=False).str.replace("X", "", regex=False),
-            errors="coerce",
-        )
-
-    df["close"] = to_float(df.get("ClosingPrice", pd.Series(dtype=object)))
-    df["volume"] = to_float(df.get("TradeVolume", pd.Series(dtype=object)))
-    df["change"] = to_float(df.get("Change", pd.Series(dtype=object)))
-    df["code"] = df.get("Code", pd.Series(dtype=object)).astype(str).str.strip()
-    df["name"] = df.get("Name", pd.Series(dtype=object)).astype(str).str.strip()
-
-    df["change_pct"] = np.where(
-        (df["close"] - df["change"]) > 0,
-        df["change"] / (df["close"] - df["change"]) * 100,
+    out = pd.DataFrame({
+        "code": df.get("Code", pd.Series(dtype=object)).astype(str).str.strip().str.upper(),
+        "name": df.get("Name", pd.Series(dtype=object)).astype(str).str.strip(),
+        "close": to_float_series(df.get("ClosingPrice", pd.Series(dtype=object))),
+        "volume": to_float_series(df.get("TradeVolume", pd.Series(dtype=object))),
+        "trade_value": to_float_series(df.get("TradeValue", pd.Series(dtype=object))),
+        "change": to_float_series(df.get("Change", pd.Series(dtype=object))),
+        "open": to_float_series(df.get("OpeningPrice", pd.Series(dtype=object))),
+        "high": to_float_series(df.get("HighestPrice", pd.Series(dtype=object))),
+        "low": to_float_series(df.get("LowestPrice", pd.Series(dtype=object))),
+        "raw_date": df.get("Date", pd.Series(dtype=object)).astype(str),
+    })
+    out["as_of"] = out["raw_date"].map(lambda x: roc_to_iso(x) if re.search(r"\d", str(x)) else None)
+    out["change_pct"] = np.where(
+        (out["close"] - out["change"]) > 0,
+        out["change"] / (out["close"] - out["change"]) * 100,
         np.nan,
     )
+    out["kind"] = out["code"].map(security_kind)
+    out = out[out["kind"].notna()].copy()
+    out = out[~out.apply(lambda r: is_leveraged_or_inverse(r["code"], r["name"]), axis=1)]
+    if out["trade_value"].isna().all():
+        out["trade_value"] = out["close"] * out["volume"]
+    return out.dropna(subset=["close", "volume"])
 
-    # 只保留 4 碼的普通股代號,排除 ETF(通常 00xxxx)、權證等衍生商品,
-    # 這是一個保守的預設篩法,想涵蓋 ETF 的話把這行拿掉即可。
-    df = df[df["code"].str.fullmatch(r"\d{4}")]
 
-    return df.dropna(subset=["close", "volume"])
+def fetch_market_snapshot() -> pd.DataFrame:
+    """優先官網當日盤後,OpenAPI 常慢一天,兩者都抓後取日期較新的那份。"""
+    frames: list[tuple[str, int, pd.DataFrame]] = []
+    for loader, prefer in ((_snapshot_from_official, 1), (_snapshot_from_openapi, 0)):
+        label = "官網" if prefer else "OpenAPI"
+        try:
+            df = _normalize_snapshot(loader())
+            as_of = str(df["as_of"].dropna().iloc[0])
+            frames.append((as_of, prefer, df))
+            print(f"      {label}快照交易日 {as_of}")
+        except Exception as exc:
+            print(f"[警告] {label} STOCK_DAY_ALL 失敗: {exc}", file=sys.stderr)
+    if not frames:
+        raise RuntimeError("無法取得證交所全市場快照,可能是非交易日或 API 異常。")
+    frames.sort()
+    as_of, _, chosen = frames[-1]
+    print(f"      採用交易日 {as_of},共 {len(chosen)} 檔(股票+ETF)")
+    return chosen
+
+
+def fetch_restricted_codes() -> set[str]:
+    """處置中、變更交易(全額交割/分盤)的代號。注意股不剔除。"""
+    blocked: set[str] = set()
+    try:
+        raw = http_get(TWSE_PUNISH).json()
+        for row in raw or []:
+            code = str(row.get("Code", "")).strip().upper()
+            if code:
+                blocked.add(code)
+    except Exception as exc:
+        print(f"[警告] 處置股名單讀取失敗: {exc}", file=sys.stderr)
+    try:
+        raw = http_get(TWSE_ALTERED).json()
+        for row in raw or []:
+            flag = str(row.get("PeriodicCallAuctionTrading", "")).strip()
+            if flag:
+                code = str(row.get("Code", "")).strip().upper()
+                if code:
+                    blocked.add(code)
+    except Exception as exc:
+        print(f"[警告] 變更交易名單讀取失敗: {exc}", file=sys.stderr)
+    if blocked:
+        print(f"      剔除處置/變更交易 {len(blocked)} 檔: {', '.join(sorted(blocked))}")
+    return blocked
+
+
+def fetch_taiex_official() -> tuple[float | None, float | None]:
+    """回傳 (收盤指數, 漲跌百分比)。"""
+    try:
+        payload = http_get(TWSE_MI_INDEX, params={"response": "json", "type": "IND"}).json()
+        tables = payload.get("tables") or []
+        for table in tables:
+            fields = table.get("fields") or []
+            if "指數" not in fields or "漲跌百分比(%)" not in fields:
+                continue
+            i_name = fields.index("指數")
+            i_close = fields.index("收盤指數") if "收盤指數" in fields else None
+            i_pct = fields.index("漲跌百分比(%)")
+            for row in table.get("data") or []:
+                if str(row[i_name]).strip() == "發行量加權股價指數":
+                    close = float(str(row[i_close]).replace(",", "")) if i_close is not None else None
+                    pct = float(str(row[i_pct]).replace(",", "").replace("+", ""))
+                    return close, pct
+    except Exception as exc:
+        print(f"[警告] 大盤指數讀取失敗: {exc}", file=sys.stderr)
+    return None, None
+
+
+def fetch_t86_map(as_of: str, need_days: int = 3) -> dict[str, dict]:
+    """近幾個交易日的外資/投信買賣超(股)。失敗就當沒有籌碼,不中斷掃描。"""
+    out: dict[str, dict] = {}
+    days: list[tuple[str, list]] = []
+    cursor = datetime.fromisoformat(as_of).date()
+    for _ in range(12):
+        date_s = cursor.strftime("%Y%m%d")
+        try:
+            payload = http_get(
+                TWSE_T86,
+                params={"date": date_s, "selectType": "ALL", "response": "json"},
+            ).json()
+        except Exception:
+            payload = {}
+        if payload.get("stat") == "OK" and payload.get("data"):
+            days.append((roc_to_iso(payload.get("date") or date_s), payload["data"]))
+            if len(days) >= need_days:
+                break
+        cursor -= timedelta(days=1)
+
+    if not days:
+        print("[警告] T86 三大法人讀取失敗,這次掃描不含籌碼面。", file=sys.stderr)
+        return out
+
+    print(f"      法人資料交易日: {', '.join(d for d, _ in days)}")
+    streak_maps: list[dict[str, dict]] = []
+    for _, rows in days:
+        m = {}
+        for row in rows:
+            code = str(row[0]).strip().upper()
+            foreign = parse_int(row[4]) + parse_int(row[7])
+            trust = parse_int(row[10])
+            m[code] = {"foreign": foreign, "trust": trust}
+        streak_maps.append(m)
+
+    all_codes = set().union(*[m.keys() for m in streak_maps])
+    latest = streak_maps[0]
+    for code in all_codes:
+        trust_series = [m.get(code, {}).get("trust", 0) for m in streak_maps]
+        streak = 0
+        for n in trust_series:
+            if n > 0:
+                streak += 1
+            else:
+                break
+        out[code] = {
+            "foreign_net": latest.get(code, {}).get("foreign"),
+            "trust_net": latest.get(code, {}).get("trust"),
+            "trust_streak": streak,
+        }
+    return out
 
 
 # ---- Stage 2: 流動性初篩 ---------------------------------------------------
 
-def screen_candidates(df: pd.DataFrame) -> pd.DataFrame:
-    liquid = df[
-        (df["volume"] >= MIN_TRADE_VOLUME_SHARES)
-        & (df["close"].between(MIN_PRICE, MAX_PRICE))
-    ].copy()
-
-    # 依成交值(約略以 close * volume 估計)排序,取前 N 檔進入下一階段
-    liquid["turnover_est"] = liquid["close"] * liquid["volume"]
-    liquid = liquid.sort_values("turnover_est", ascending=False).head(CANDIDATE_POOL_SIZE)
+def screen_candidates(df: pd.DataFrame, blocked: set[str]) -> pd.DataFrame:
+    work = df[~df["code"].isin(blocked)].copy()
+    etf = work["kind"].eq("etf")
+    price_ok = np.where(
+        etf,
+        work["close"].between(MIN_ETF_PRICE, MAX_PRICE),
+        work["close"].between(MIN_PRICE, MAX_PRICE),
+    )
+    volume_ok = work["volume"] >= MIN_TRADE_VOLUME_SHARES
+    etf_value_ok = etf & (work["trade_value"] >= MIN_ETF_TRADE_VALUE)
+    liquid = work[price_ok & (volume_ok | etf_value_ok)].copy()
+    liquid = liquid.sort_values("trade_value", ascending=False).head(CANDIDATE_POOL_SIZE)
     return liquid
 
 
@@ -254,12 +536,12 @@ def compute_atr_wilder(hist: pd.DataFrame, period: int = 14) -> pd.Series:
 
 
 def rsi_health_raw(rsi: float) -> float:
-    """RSI 健康度:在 50–70 之間呈山形,峰值約 58,不是整段平台 100 分。"""
+    """RSI 健康度:40–80 山形,峰值 58;58→80 線性降到 0,沒有 75–80 死區。"""
     if pd.isna(rsi) or rsi < 40 or rsi > 80:
         return 0.0
     if rsi <= 58:
         return (rsi - 40) / 18.0
-    return max(0.0, (75 - rsi) / 17.0)
+    return (80 - rsi) / 22.0
 
 
 def fetch_history(codes: list[str]) -> dict[str, pd.DataFrame]:
@@ -279,11 +561,12 @@ def fetch_history(codes: list[str]) -> dict[str, pd.DataFrame]:
             sub = raw[ticker].dropna(how="all")
         except (KeyError, IndexError):
             continue
-        if len(sub) >= 40:  # Wilder RSI/ATR 需要比 20 日均線更多的暖身
+        sub = normalize_ohlcv_index(sub)
+        if len(sub) >= 60:
             out[code] = sub
 
     try:
-        out[TAIEX_TICKER] = raw[TAIEX_TICKER].dropna(how="all")
+        out[TAIEX_TICKER] = normalize_ohlcv_index(raw[TAIEX_TICKER].dropna(how="all"))
     except (KeyError, IndexError):
         pass
 
@@ -293,29 +576,35 @@ def fetch_history(codes: list[str]) -> dict[str, pd.DataFrame]:
 def extract_features(
     code: str,
     name: str,
+    kind: str,
     hist: pd.DataFrame,
     taiex: pd.DataFrame | None,
-    twse_close: float | None,
+    twse_bar: dict | None,
     twse_change_pct: float | None,
+    as_of: str,
+    inst: dict | None,
 ) -> FeatureRow | None:
+    hist = overlay_last_bar(hist, as_of, twse_bar)
     close = hist["Close"].dropna()
-    volume = hist["Volume"].dropna()
+    volume = hist["Volume"].reindex(close.index)
     if len(close) < 40:
         return None
 
     ma5 = close.rolling(5).mean()
     ma20 = close.rolling(20).mean()
     rsi = compute_rsi_wilder(close, 14)
-    atr = compute_atr_wilder(hist, 14)
+    atr = compute_atr_wilder(hist.reindex(close.index), 14)
     vol_avg20 = volume.rolling(20).mean()
-    high20 = hist["High"].rolling(20).max()
-    low10 = hist["Low"].rolling(10).min()
+    high20 = hist["High"].reindex(close.index).rolling(20).max()
+    low10 = hist["Low"].reindex(close.index).rolling(10).min()
 
-    last_close_yf = float(close.iloc[-1])
-    prev_close_yf = float(close.iloc[-2])
-    yf_change_pct = (last_close_yf / prev_close_yf - 1) * 100
+    last_close = float(close.iloc[-1])
+    prev_close = float(close.iloc[-2]) if len(close) >= 2 else last_close
+    yf_change_pct = (last_close / prev_close - 1) * 100 if prev_close else 0.0
 
-    display_close = float(twse_close) if twse_close is not None and not pd.isna(twse_close) else last_close_yf
+    display_close = last_close
+    if twse_bar and twse_bar.get("close") is not None and not pd.isna(twse_bar["close"]):
+        display_close = float(twse_bar["close"])
     display_change = (
         float(twse_change_pct)
         if twse_change_pct is not None and not pd.isna(twse_change_pct)
@@ -330,25 +619,26 @@ def extract_features(
     last_low10 = float(low10.iloc[-1]) if not pd.isna(low10.iloc[-1]) and low10.iloc[-1] else None
 
     vol_ratio = None
-    if vol_avg20.iloc[-1] and not pd.isna(vol_avg20.iloc[-1]):
-        vol_ratio = float(volume.iloc[-1] / vol_avg20.iloc[-1])
+    if len(volume.dropna()) and vol_avg20.iloc[-1] and not pd.isna(vol_avg20.iloc[-1]):
+        last_vol = volume.iloc[-1]
+        if last_vol is not None and not pd.isna(last_vol):
+            vol_ratio = float(last_vol / vol_avg20.iloc[-1])
 
     atr_extension = None
     if last_atr:
-        atr_extension = (last_close_yf - last_ma20) / last_atr
+        atr_extension = (last_close - last_ma20) / last_atr
 
     dist_from_high = None
     if last_high20:
-        dist_from_high = (last_high20 - last_close_yf) / last_high20
+        dist_from_high = (last_high20 - last_close) / last_high20
 
     excess_5d = None
-    if taiex is not None and len(taiex["Close"].dropna()) >= 6 and len(close) >= 6:
-        stock_5d = close.iloc[-1] / close.iloc[-6] - 1
-        index_5d = taiex["Close"].dropna().iloc[-1] / taiex["Close"].dropna().iloc[-6] - 1
-        excess_5d = float(stock_5d - index_5d)
+    if taiex is not None and len(taiex["Close"].dropna()) >= 6:
+        excess_5d = excess_return(close, taiex["Close"].dropna(), 5)
 
     tags: list[str] = []
     risk_tags: list[str] = []
+    tags.append("ETF" if kind == "etf" else "個股")
 
     diff_series = (ma5 - ma20).dropna()
     if len(diff_series) >= 4:
@@ -369,10 +659,26 @@ def extract_features(
     if excess_5d is not None and excess_5d > 0:
         tags.append("強於大盤")
 
+    trust_net = None if not inst else inst.get("trust_net")
+    foreign_net = None if not inst else inst.get("foreign_net")
+    trust_streak = 0 if not inst else int(inst.get("trust_streak") or 0)
+    if trust_streak >= 3:
+        tags.append("投信連3日買超")
+    elif trust_net is not None and trust_net > 0:
+        tags.append("投信買超")
+    if foreign_net is not None and foreign_net > 0 and trust_net is not None and trust_net > 0:
+        tags.append("外資投信同步買超")
+    elif foreign_net is not None and foreign_net > 0:
+        tags.append("外資買超")
+
     if display_change >= NEAR_LIMIT_PCT:
         risk_tags.append("接近漲停")
     elif display_change >= BIG_UP_PCT:
         risk_tags.append("今日大漲")
+    if display_change <= NEAR_LIMIT_DOWN_PCT:
+        risk_tags.append("接近跌停")
+    elif display_change <= BIG_DOWN_PCT:
+        risk_tags.append("今日大跌")
 
     if display_change <= -5 and vol_ratio is not None and vol_ratio >= 1.8:
         risk_tags.append("放量長陰")
@@ -384,24 +690,26 @@ def extract_features(
 
     trend_raw = (last_ma5 - last_ma20) / last_ma20 if last_ma20 else 0.0
     rsi_raw = rsi_health_raw(last_rsi if last_rsi is not None else np.nan)
-    ext_for_crowd = atr_extension if atr_extension is not None else 0.0
-    not_extended_raw = -ext_for_crowd
+    # 只懲罰「往上延伸」;跌深不會被當成結構加分
+    ext_up = max(0.0, atr_extension) if atr_extension is not None else 0.0
+    not_extended_raw = -ext_up
 
     return FeatureRow(
         code=code,
         name=name,
         close=round(display_close, 2),
         change_pct=round(float(display_change), 2),
+        kind=kind,
         trend_raw=float(trend_raw),
         rsi_health_raw=float(rsi_raw),
         not_extended_raw=float(not_extended_raw),
         vol_raw=float(vol_ratio) if vol_ratio is not None else np.nan,
         relative_raw=float(excess_5d) if excess_5d is not None else np.nan,
         day_move_raw=float(abs(display_change)),
-        extension_raw=float(ext_for_crowd),
+        extension_raw=float(ext_up),
         rsi14=None if last_rsi is None else round(last_rsi, 1),
         vol_ratio=None if vol_ratio is None else round(vol_ratio, 2),
-        above_ma20=bool(last_close_yf > last_ma20),
+        above_ma20=bool(last_close > last_ma20),
         atr_extension=None if atr_extension is None else round(atr_extension, 2),
         dist_from_high=None if dist_from_high is None else round(dist_from_high * 100, 2),
         excess_5d=None if excess_5d is None else round(excess_5d * 100, 2),
@@ -410,50 +718,67 @@ def extract_features(
         ma20=round(last_ma20, 4),
         swing_low_10=None if last_low10 is None else round(last_low10, 4),
         swing_high_20=None if last_high20 is None else round(last_high20, 4),
+        trust_net=trust_net,
+        foreign_net=foreign_net,
+        trust_streak=trust_streak,
         tags=tags,
         risk_tags=risk_tags,
     )
 
 
-def _pct_rank(values: list[float]) -> np.ndarray:
-    s = pd.Series(values, dtype=float)
-    return s.rank(method="average", pct=True, na_option="keep").fillna(0.5).to_numpy() * 100.0
-
-
 def extra_penalty(change_pct: float) -> float:
-    if change_pct >= NEAR_LIMIT_PCT:
+    if change_pct >= NEAR_LIMIT_PCT or change_pct <= NEAR_LIMIT_DOWN_PCT:
         return NEAR_LIMIT_PENALTY
-    if change_pct >= BIG_UP_PCT:
+    if change_pct >= BIG_UP_PCT or change_pct <= BIG_DOWN_PCT:
         return BIG_UP_PENALTY
     return 0.0
+
+
+def chip_score_adj(r: FeatureRow) -> float:
+    adj = 0.0
+    if r.trust_streak >= 3:
+        adj += TRUST_STREAK_BONUS
+    elif r.trust_net is not None and r.trust_net > 0:
+        adj += TRUST_SCORE_BONUS
+    if r.foreign_net is not None and r.trust_net is not None:
+        if r.foreign_net > 0 and r.trust_net > 0:
+            adj += BOTH_BUY_BONUS
+        elif r.foreign_net < 0 and r.trust_net < 0:
+            adj -= BOTH_SELL_PENALTY
+    return adj
 
 
 def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
     if not rows:
         return []
 
-    trend_p = _pct_rank([r.trend_raw for r in rows])
-    rsi_p = _pct_rank([r.rsi_health_raw for r in rows])
-    n_ext_p = _pct_rank([r.not_extended_raw for r in rows])
-    vol_p = _pct_rank([r.vol_raw for r in rows])
-    rel_p = _pct_rank([r.relative_raw for r in rows])
-    day_p = _pct_rank([r.day_move_raw for r in rows])
-    ext_p = _pct_rank([r.extension_raw for r in rows])
+    factor_df = pd.DataFrame({
+        "trend": [r.trend_raw for r in rows],
+        "rsi": [r.rsi_health_raw for r in rows],
+        "not_extended": [r.not_extended_raw for r in rows],
+        "volume": [r.vol_raw for r in rows],
+        "relative": [r.relative_raw for r in rows],
+        "day_move": [r.day_move_raw for r in rows],
+        "extension": [r.extension_raw for r in rows],
+    })
+    # 缺值給中性 50 百分位,只影響排序,不能當成「符合強勢條件」
+    ranks = factor_df.rank(method="average", pct=True, na_option="keep") * 100.0
+    ranks = ranks.fillna(50.0)
 
     out: list[Candidate] = []
     for i, r in enumerate(rows):
         structure = (
-            trend_p[i] * STRUCTURE_WEIGHTS["trend"]
-            + rsi_p[i] * STRUCTURE_WEIGHTS["rsi"]
-            + n_ext_p[i] * STRUCTURE_WEIGHTS["not_extended"]
+            ranks.at[i, "trend"] * STRUCTURE_WEIGHTS["trend"]
+            + ranks.at[i, "rsi"] * STRUCTURE_WEIGHTS["rsi"]
+            + ranks.at[i, "not_extended"] * STRUCTURE_WEIGHTS["not_extended"]
         )
         crowding = (
-            vol_p[i] * CROWDING_WEIGHTS["volume"]
-            + rel_p[i] * CROWDING_WEIGHTS["relative"]
-            + day_p[i] * CROWDING_WEIGHTS["day_move"]
-            + ext_p[i] * CROWDING_WEIGHTS["extension"]
+            ranks.at[i, "volume"] * CROWDING_WEIGHTS["volume"]
+            + ranks.at[i, "relative"] * CROWDING_WEIGHTS["relative"]
+            + ranks.at[i, "day_move"] * CROWDING_WEIGHTS["day_move"]
+            + ranks.at[i, "extension"] * CROWDING_WEIGHTS["extension"]
         )
-        score = structure - CROWDING_PENALTY * crowding - extra_penalty(r.change_pct)
+        score = structure - CROWDING_PENALTY * crowding - extra_penalty(r.change_pct) + chip_score_adj(r)
         if r.vol_raw is not None and not pd.isna(r.vol_raw) and r.vol_raw < DEAD_TAPE_VOL:
             score -= DEAD_TAPE_PENALTY
         if r.relative_raw is not None and not pd.isna(r.relative_raw) and r.relative_raw < 0:
@@ -464,12 +789,14 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
                 name=r.name,
                 close=r.close,
                 change_pct=r.change_pct,
+                kind=r.kind,
                 structure=round(float(structure), 1),
                 crowding=round(float(crowding), 1),
                 score=round(float(score), 1),
                 tags=r.tags,
                 risk_tags=r.risk_tags,
                 detail={
+                    "kind": r.kind,
                     "rsi14": r.rsi14,
                     "vol_ratio_20d": r.vol_ratio,
                     "above_ma20": r.above_ma20,
@@ -481,13 +808,16 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
                     "ma20": None if r.ma20 is None else round(r.ma20, 2),
                     "swing_low_10": None if r.swing_low_10 is None else round(r.swing_low_10, 2),
                     "swing_high_20": None if r.swing_high_20 is None else round(r.swing_high_20, 2),
+                    "trust_net": r.trust_net,
+                    "foreign_net": r.foreign_net,
+                    "trust_streak": r.trust_streak,
                     "factors": {
-                        "trend": round(float(trend_p[i]), 0),
-                        "rsi": round(float(rsi_p[i]), 0),
-                        "not_extended": round(float(n_ext_p[i]), 0),
-                        "volume": round(float(vol_p[i]), 0),
-                        "relative": round(float(rel_p[i]), 0),
-                        "day_move": round(float(day_p[i]), 0),
+                        "trend": round(float(ranks.at[i, "trend"]), 0),
+                        "rsi": round(float(ranks.at[i, "rsi"]), 0),
+                        "not_extended": round(float(ranks.at[i, "not_extended"]), 0),
+                        "volume": round(float(ranks.at[i, "volume"]), 0),
+                        "relative": round(float(ranks.at[i, "relative"]), 0),
+                        "day_move": round(float(ranks.at[i, "day_move"]), 0),
                     },
                 },
             )
@@ -495,18 +825,22 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
     return out
 
 
-def classify_action(c: Candidate) -> tuple[str, str]:
-    """短線規則分級。出場是「若已持有」的假設,不是叫沒持股的人去放空。"""
+def classify_action(c: Candidate, regime: str) -> tuple[str, str]:
+    """短線規則分級。出場只應套在日前推薦標的上,這裡先給今日技術狀態。"""
     d = c.detail or {}
     rsi = d.get("rsi14")
     atr = d.get("atr_extension")
     above = d.get("above_ma20")
     vol = d.get("vol_ratio_20d")
     excess = d.get("excess_5d_pct")
+    trust_net = d.get("trust_net")
+    foreign_net = d.get("foreign_net")
     risks = set(c.risk_tags or [])
 
     if "接近漲停" in risks:
         return "exit", "接近漲停,短線空間被用完的機率高"
+    if "接近跌停" in risks:
+        return "exit", "接近跌停,短線先出場觀望"
     if "放量長陰" in risks:
         return "exit", "放量長陰,偏高潮後回吐"
     if rsi is not None and rsi > 80:
@@ -518,6 +852,8 @@ def classify_action(c: Candidate) -> tuple[str, str]:
 
     if "今日大漲" in risks:
         return "trim", "今日大漲,若已持有考慮先減碼"
+    if "今日大跌" in risks:
+        return "trim", "今日大跌,若已持有先減碼控風險"
     if "延伸過遠" in risks:
         return "trim", "靠近高點或延伸過遠,建議部分停利"
     if "短線過熱" in risks or (rsi is not None and rsi > 70):
@@ -535,11 +871,15 @@ def classify_action(c: Candidate) -> tuple[str, str]:
             bits.append(f"近5日相對大盤 {excess}%")
         return "watch", "、".join(bits) + ",比較像沒人買或相對弱,不是剛啟動"
 
+    both_sold = (
+        trust_net is not None and foreign_net is not None
+        and trust_net < 0 and foreign_net < 0
+    )
     rsi_ok = rsi is not None and 50 <= rsi <= 65
     quiet_day = abs(c.change_pct) < 5
-    not_extended = atr is None or atr < 1.5
-    vol_strong = vol is None or vol >= STRONG_VOL_RATIO
-    not_lagging = excess is None or excess >= STRONG_EXCESS_5D
+    not_extended = atr is not None and atr < 1.5
+    vol_strong = vol is not None and vol >= STRONG_VOL_RATIO
+    not_lagging = excess is not None and excess >= STRONG_EXCESS_5D
     crowding_moderate = CROWDING_STRONG_MIN <= c.crowding <= CROWDING_STRONG_MAX
     if (
         above
@@ -551,26 +891,30 @@ def classify_action(c: Candidate) -> tuple[str, str]:
         and quiet_day
         and vol_strong
         and not_lagging
+        and not both_sold
     ):
+        if regime == "risk_off":
+            return "scale_in", "結構不錯但大盤在20MA之下,改分批、不一次買滿"
         return "strong_buy", "結構高、量能有跟上、沒明顯輸大盤,比較像動能剛啟動"
 
-    rsi_scale = rsi is None or (48 <= rsi <= 70)
+    rsi_scale = rsi is not None and 48 <= rsi <= 70
     if (
         above
         and c.structure >= 55
         and c.crowding <= 58
         and rsi_scale
         and c.change_pct < BIG_UP_PCT
-        and (atr is None or atr < 2.2)
+        and (atr is not None and atr < 2.2)
+        and not both_sold
     ):
         return "scale_in", "結構尚可且不是冷清量能,適合分批而不是一次買滿"
 
     return "watch", "條件好壞參半,先看不急著動"
 
 
-def assign_actions(candidates: list[Candidate]) -> None:
+def assign_actions(candidates: list[Candidate], regime: str = "risk_on") -> None:
     for c in candidates:
-        key, reason = classify_action(c)
+        key, reason = classify_action(c, regime)
         c.action = key
         c.action_label = ACTION_LABELS[key]
         c.reason = reason
@@ -580,7 +924,9 @@ def assign_actions(candidates: list[Candidate]) -> None:
             c.plan = None
 
 
-def twse_tick(price: float) -> float:
+def twse_tick(price: float, is_etf: bool = False) -> float:
+    if is_etf:
+        return 0.01 if price < 50 else 0.05
     if price < 10:
         return 0.01
     if price < 50:
@@ -594,10 +940,10 @@ def twse_tick(price: float) -> float:
     return 5.0
 
 
-def round_tick(price: float, mode: str = "nearest") -> float:
+def round_tick(price: float, mode: str = "nearest", is_etf: bool = False) -> float:
     if price <= 0:
         return 0.0
-    tick = twse_tick(price)
+    tick = twse_tick(price, is_etf=is_etf)
     n = price / tick
     if mode == "down":
         n = math.floor(n + 1e-9)
@@ -617,6 +963,7 @@ def build_trade_plan(c: Candidate) -> dict | None:
     low10 = d.get("swing_low_10")
     high20 = d.get("swing_high_20")
     close = float(c.close)
+    is_etf = c.kind == "etf"
     if not atr or atr <= 0 or close <= 0:
         return None
 
@@ -627,29 +974,33 @@ def build_trade_plan(c: Candidate) -> dict | None:
     entry_high = close
     if entry_low >= entry_high:
         entry_low = close - 0.3 * atr
-    entry_low = round_tick(entry_low, "down")
-    entry_high = round_tick(entry_high, "nearest")
+    entry_low = round_tick(entry_low, "down", is_etf=is_etf)
+    entry_high = round_tick(entry_high, "nearest", is_etf=is_etf)
     if entry_low > entry_high:
         entry_low = entry_high
     entry_mid = (entry_low + entry_high) / 2
 
+    min_risk = max(MIN_STOP_ATR * atr, MIN_STOP_PCT / 100.0 * entry_mid)
     stop_atr = entry_low - STOP_ATR * atr
     stop = stop_atr
     if low10:
-        swing = float(low10) - twse_tick(float(low10))
+        swing = float(low10) - twse_tick(float(low10), is_etf=is_etf)
         if swing < entry_low:
-            # 短線用較近的停損:10日低點若離入場不超過 2.5×ATR,才採用
-            if 0 < (entry_low - swing) <= 2.5 * atr:
+            dist = entry_low - swing
+            # 10日低點只有「夠近但風險仍不小於最低門檻」才採用,避免 1–2 檔假停損
+            if min_risk <= dist <= 2.5 * atr:
                 stop = max(stop_atr, swing)
-    stop = round_tick(stop, "down")
+    if entry_mid - stop < min_risk:
+        stop = entry_mid - min_risk
+    stop = round_tick(stop, "down", is_etf=is_etf)
     if stop >= entry_low:
-        stop = round_tick(entry_low - STOP_ATR * atr, "down")
+        stop = round_tick(entry_low - min_risk, "down", is_etf=is_etf)
     if stop >= entry_low or entry_mid <= stop:
         return None
 
     risk = entry_mid - stop
-    tp1 = round_tick(entry_mid + TP1_R * risk, "up")
-    tp2 = round_tick(entry_mid + TP2_R * risk, "up")
+    tp1 = round_tick(entry_mid + TP1_R * risk, "up", is_etf=is_etf)
+    tp2 = round_tick(entry_mid + TP2_R * risk, "up", is_etf=is_etf)
     return {
         "horizon": HORIZON,
         "entry_low": entry_low,
@@ -657,15 +1008,58 @@ def build_trade_plan(c: Candidate) -> dict | None:
         "stop": stop,
         "tp1": tp1,
         "tp2": tp2,
-        "resistance_20d": None if not high20 else round_tick(float(high20), "nearest"),
-        "invalid_below": None if not ma20 else round_tick(float(ma20), "down"),
+        "resistance_20d": None if not high20 else round_tick(float(high20), "nearest", is_etf=is_etf),
+        "invalid_below": None if not ma20 else round_tick(float(ma20), "down", is_etf=is_etf),
         "atr": round(float(atr), 4),
         "risk_pct": round(risk / entry_mid * 100, 2),
         "tp1_pct": round((tp1 - entry_mid) / entry_mid * 100, 2),
         "tp2_pct": round((tp2 - entry_mid) / entry_mid * 100, 2),
         "rr1": TP1_R,
         "rr2": TP2_R,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且仍在2.5×ATR內則改用結構停損;停利1.5R/2.5R。跳動單位依證交所規定。",
+        "method": (
+            "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,"
+            "若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;"
+            "停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+        ),
+    }
+
+
+def market_regime(taiex_hist: pd.DataFrame | None, official_close: float | None, as_of: str) -> dict:
+    if taiex_hist is not None and official_close:
+        taiex_hist = overlay_last_bar(
+            taiex_hist,
+            as_of,
+            {"open": official_close, "high": official_close, "low": official_close, "close": official_close},
+        )
+    close = None if taiex_hist is None else taiex_hist["Close"].dropna()
+    if close is None or len(close) < 20:
+        return {
+            "regime": "unknown",
+            "label": "大盤資料不足",
+            "above_ma20": None,
+            "ma20": None,
+            "close": official_close,
+            "note": "沒有足夠的加權指數均線,市場燈號先不判斷。",
+        }
+    ma20 = float(close.rolling(20).mean().iloc[-1])
+    last = float(close.iloc[-1])
+    above = last > ma20
+    if above:
+        return {
+            "regime": "risk_on",
+            "label": "偏多可做",
+            "above_ma20": True,
+            "ma20": round(ma20, 2),
+            "close": round(last, 2),
+            "note": "加權指數站上20日均線,短線環境允許找剛啟動的標的,仍須自行控風險。",
+        }
+    return {
+        "regime": "risk_off",
+        "label": "偏空防守",
+        "above_ma20": False,
+        "ma20": round(ma20, 2),
+        "close": round(last, 2),
+        "note": "加權指數在20日均線之下,系統不發強力推薦,建議多看少做或維持空倉。",
     }
 
 
@@ -675,10 +1069,132 @@ def _action_sort_key(c: Candidate) -> tuple:
     return (-c.score, c.crowding)
 
 
-def build_lazy_pack(candidates: list[Candidate]) -> dict:
+def collect_prior_recs(history_days: list[dict], today_date: str) -> dict[str, dict]:
+    usable = [d for d in history_days if d.get("date") and d["date"] != today_date][-EXIT_LOOKBACK_DAYS:]
+    recs: dict[str, dict] = {}
+    for day in usable:
+        for item in day.get("candidates") or []:
+            code = str(item.get("code", "")).strip().upper()
+            if not code:
+                continue
+            action = item.get("action")
+            tracked = action in ("strong_buy", "scale_in") or action is None
+            if not tracked:
+                continue
+            if code not in recs:
+                recs[code] = {**item, "rec_date": day["date"]}
+    return recs
+
+
+def build_exit_from_history(
+    candidates: list[Candidate],
+    history_days: list[dict],
+    today_date: str,
+    today_df: pd.DataFrame,
+    blocked: set[str] | None = None,
+) -> tuple[list[Candidate], list[Candidate]]:
+    """只追蹤日前推薦,不要把全市場大跌股塞進出場欄。"""
+    prior = collect_prior_recs(history_days, today_date)
+    if not prior:
+        return [], []
+    by_code = {c.code: c for c in candidates}
+    today_px = dict(zip(today_df["code"].astype(str), today_df["close"].astype(float)))
+    today_chg = dict(zip(today_df["code"].astype(str), today_df["change_pct"].astype(float)))
+    today_name = dict(zip(today_df["code"].astype(str), today_df["name"].astype(str)))
+    blocked = blocked or set()
+    trims: list[Candidate] = []
+    exits: list[Candidate] = []
+
+    for code, rec in prior.items():
+        rec_date = rec.get("rec_date")
+        prefix = f"日前推薦({rec_date}) "
+        px = today_px.get(code)
+
+        if code in blocked:
+            item = Candidate(
+                code=code,
+                name=str(rec.get("name") or today_name.get(code, code)),
+                close=float(px) if px is not None else float(rec.get("close") or 0),
+                change_pct=float(today_chg.get(code) or 0.0),
+                kind=str(rec.get("kind") or ("etf" if security_kind(code) == "etf" else "stock")),
+                action="exit",
+                action_label=ACTION_LABELS["exit"],
+                reason=prefix + "已進入處置或變更交易,流動性受限建議出場",
+                tags=["日前推薦"],
+            )
+            exits.append(item)
+            continue
+
+        if px is None:
+            continue
+        live = by_code.get(code)
+
+        if live and live.action in ("trim", "exit"):
+            item = Candidate(
+                code=live.code,
+                name=live.name,
+                close=live.close,
+                change_pct=live.change_pct,
+                kind=live.kind,
+                structure=live.structure,
+                crowding=live.crowding,
+                score=live.score,
+                tags=live.tags,
+                risk_tags=live.risk_tags,
+                detail=live.detail,
+                action=live.action,
+                action_label=live.action_label,
+                reason=prefix + live.reason,
+                plan=live.plan,
+            )
+            (exits if live.action == "exit" else trims).append(item)
+            continue
+
+        stop, tp1, tp2, ma20 = rec.get("stop"), rec.get("tp1"), rec.get("tp2"), rec.get("ma20")
+        reason = None
+        action = None
+        if stop and px <= float(stop):
+            action, reason = "exit", f"跌破停損 {stop}"
+        elif ma20 and px < float(ma20):
+            action, reason = "exit", f"收盤跌破20日均線 {ma20}"
+        elif tp2 and px >= float(tp2):
+            action, reason = "exit", f"已達停利2 {tp2}"
+        elif tp1 and px >= float(tp1):
+            action, reason = "trim", f"已達停利1 {tp1}"
+        if not action:
+            continue
+        item = Candidate(
+            code=code,
+            name=str(rec.get("name") or today_name.get(code, code)),
+            close=float(px),
+            change_pct=float(today_chg.get(code) or 0.0),
+            kind=str(rec.get("kind") or ("etf" if security_kind(code) == "etf" else "stock")),
+            structure=float(live.structure) if live else 0.0,
+            crowding=float(live.crowding) if live else 0.0,
+            score=float(live.score) if live else 0.0,
+            tags=["日前推薦"],
+            risk_tags=[],
+            detail=(live.detail if live else {}),
+            action=action,
+            action_label=ACTION_LABELS[action],
+            reason=prefix + reason,
+            plan=live.plan if live else None,
+        )
+        (exits if action == "exit" else trims).append(item)
+    return trims, exits
+
+
+def build_lazy_pack(
+    candidates: list[Candidate],
+    trim_items: list[Candidate] | None = None,
+    exit_items: list[Candidate] | None = None,
+) -> dict:
     buckets: dict[str, list[Candidate]] = {k: [] for k in ACTION_LABELS}
     for c in candidates:
-        buckets[c.action].append(c)
+        if c.action in ("strong_buy", "scale_in", "watch"):
+            buckets[c.action].append(c)
+    buckets["trim"] = list(trim_items or [])
+    buckets["exit"] = list(exit_items or [])
 
     pack = {}
     counts = {}
@@ -702,25 +1218,21 @@ def build_lazy_pack(candidates: list[Candidate]) -> dict:
             break
     pack["trade_table"] = entry_rows
     pack["trade_method"] = (
-        "沒有法人籌碼或某分析師內部模型。進場區間=現價回檔至5日均線附近;"
-        "停損預設1.5×Wilder ATR,10日低點只在距離夠近時才用;停利=1.5R/2.5R。"
-        "參考持有5–10個交易日,收盤跌破20日均線視為結構失效。風險自負。"
+        "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,"
+        "且不少於 max(1×ATR, 2.5%);停利=1.5R/2.5R。"
+        "參考持有5–10個交易日,收盤跌破20日均線視為結構失效。"
+        "出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。"
     )
     pack["note"] = (
-        "這是同一套技術規則的分級建議,不是保證獲利的進出場點。"
-        "強力推薦需要量能跟上且近5日不輸大盤;沒人買的冷清改觀望。"
-        "出場假設你已經持有,未持有請忽略出場清單。"
+        "這是同一套技術規則加上公開法人買賣超的分級建議,不是保證獲利的進出場點。"
+        "強力推薦需要量能跟上、近5日不輸大盤,且缺資料時不會當成強勢。"
+        "大盤跌破20MA時不發強力推薦。出場只列出日前推薦標的的停利/停損狀態。"
         "任何買賣都是你自己的判斷與責任。"
     )
     return pack
 
 
 # ---- Stage 4: 組裝輸出 -----------------------------------------------------
-
-def taipei_today() -> str:
-    tz = timezone(timedelta(hours=8))
-    return datetime.now(tz).date().isoformat()
-
 
 def snapshots_path_for(out_path: Path) -> Path:
     return out_path.parent / "snapshots.json"
@@ -781,7 +1293,7 @@ def build_review(
         "avg_return_5d": None,
         "n_5d": 0,
         "from_date_5d": None,
-        "note": "清單報酬用證交所收盤價對帳;大盤日報酬來自 Yahoo Finance ^TWII。",
+        "note": "清單報酬與大盤日報酬都用證交所收盤價對帳;as_of 是快照交易日而非執行當日。",
     }
 
     if len(usable) >= 5:
@@ -798,6 +1310,7 @@ def candidate_payload(c: Candidate) -> dict:
     return {
         "code": c.code,
         "name": c.name,
+        "kind": c.kind,
         "close": c.close,
         "change_pct": c.change_pct,
         "structure": c.structure,
@@ -813,36 +1326,54 @@ def candidate_payload(c: Candidate) -> dict:
     }
 
 
+def snapshot_entry(c: Candidate) -> dict:
+    plan = c.plan or {}
+    return {
+        "code": c.code,
+        "name": c.name,
+        "kind": c.kind,
+        "close": c.close,
+        "score": c.score,
+        "action": c.action,
+        "stop": plan.get("stop"),
+        "tp1": plan.get("tp1"),
+        "tp2": plan.get("tp2"),
+        "ma20": (c.detail or {}).get("ma20"),
+    }
+
+
 def build_output(
     candidates: list[Candidate],
     top_n: int,
     taiex_change_pct: float | None,
     review: dict | None,
     as_of: str,
+    market: dict | None,
+    lazy_pack: dict | None = None,
 ) -> dict:
     ranked = sorted(candidates, key=lambda c: c.score, reverse=True)[:top_n]
-    tz = timezone(timedelta(hours=8))
     return {
-        "updated_at": datetime.now(tz).isoformat(),
+        "updated_at": taipei_now().isoformat(),
         "as_of": as_of,
         "taiex_change_pct": taiex_change_pct,
-        "price_source": "現價與漲跌幅來自證交所 STOCK_DAY_ALL 當日快照",
-        "indicator_source": "均線 / RSI(14, Wilder) / ATR / 量比 / 相對強弱來自 Yahoo Finance 歷史K線",
+        "market": market,
+        "price_source": "現價與漲跌幅來自證交所盤後 STOCK_DAY_ALL(官網優先,OpenAPI 備援)",
+        "indicator_source": "均線 / RSI(14, Wilder) / ATR / 量比 / 相對強弱來自 Yahoo Finance;缺當日K則用證交所 OHLC 補上。法人來自 T86。",
         "methodology": {
             "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
             "rsi": "RSI(14, Wilder)",
-            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 接近漲停/今日大漲降權",
-            "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;冷清量能改觀望。出場假設已持有",
-            "trade_plan": "進場等回檔至MA5;停損1.5×ATR(近10日低點僅在距離短時採用);停利1.5R/2.5R。不是法人大數據或特定分析師模型。",
+            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 漲跌停/大漲大跌降權 + 法人加減分",
+            "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;缺資料不當成強勢。大盤在20MA下不發強力推薦。出場只追蹤日前推薦。",
+            "trade_plan": "進場等回檔至MA5;停損1.5×ATR且不少於 max(1×ATR, 2.5%);停利1.5R/2.5R。ETF 用 ETF 檔位。",
             "weights": {
                 "structure": STRUCTURE_WEIGHTS,
                 "crowding": CROWDING_WEIGHTS,
                 "crowding_penalty": CROWDING_PENALTY,
             },
-            "note": "本清單為技術面規則篩選結果,不構成投資建議,過去表現不代表未來績效。動能延續是持有期因子;結構分偏「剛啟動」,擁擠分偏「已經走遠」。",
+            "note": "本清單為技術面規則加上公開三大法人資料的篩選結果,不構成投資建議,過去表現不代表未來績效。動能延續是持有期因子;結構分偏「剛啟動」,擁擠分偏「已經走遠」。",
         },
         "review": review,
-        "lazy_pack": build_lazy_pack(candidates),
+        "lazy_pack": lazy_pack or build_lazy_pack(candidates),
         "candidates": [candidate_payload(c) for c in ranked],
     }
 
@@ -852,26 +1383,31 @@ def build_output(
 def build_demo_output(top_n: int) -> dict:
     rng = np.random.default_rng(42)
     sample_names = [
-        ("2330", "台積電"), ("2317", "鴻海"), ("2454", "聯發科"), ("3231", "緯創"),
-        ("2382", "廣達"), ("2603", "長榮"), ("3008", "大立光"), ("2379", "瑞昱"),
-        ("6669", "緯穎"), ("3661", "世芯-KY"), ("2308", "台達電"), ("2412", "中華電"),
-        ("1301", "台塑"), ("2891", "中信金"), ("2881", "富邦金"), ("3037", "欣興"),
-        ("2345", "智邦"), ("6446", "藥華藥"), ("2327", "國巨"), ("5347", "世界"),
+        ("2330", "台積電", "stock"), ("00878", "國泰永續高股息", "etf"),
+        ("2454", "聯發科", "stock"), ("0050", "元大台灣50", "etf"),
+        ("2382", "廣達", "stock"), ("00919", "群益台灣精選高息", "etf"),
+        ("3008", "大立光", "stock"), ("2379", "瑞昱", "stock"),
+        ("6669", "緯穎", "stock"), ("3661", "世芯-KY", "stock"),
+        ("2308", "台達電", "stock"), ("2412", "中華電", "stock"),
+        ("1301", "台塑", "stock"), ("2891", "中信金", "stock"),
+        ("2881", "富邦金", "stock"), ("3037", "欣興", "stock"),
+        ("2345", "智邦", "stock"), ("6446", "藥華藥", "stock"),
+        ("2327", "國巨", "stock"), ("5347", "世界", "stock"),
     ]
     archetypes = [
-        {"structure": 78, "crowding": 28, "rsi": 57, "chg": 0.8, "atr": 0.4, "above": True, "risks": [], "vol": 1.3, "excess": 1.2},
-        {"structure": 72, "crowding": 36, "rsi": 54, "chg": -0.5, "atr": 0.6, "above": True, "risks": [], "vol": 1.1, "excess": 0.4},
-        {"structure": 64, "crowding": 48, "rsi": 61, "chg": 1.2, "atr": 1.1, "above": True, "risks": [], "vol": 1.0, "excess": 0.2},
-        {"structure": 58, "crowding": 52, "rsi": 66, "chg": 2.1, "atr": 1.4, "above": True, "risks": [], "vol": 0.95, "excess": -0.3},
-        {"structure": 74, "crowding": 26, "rsi": 57, "chg": -0.9, "atr": 0.2, "above": True, "risks": [], "vol": 0.48, "excess": -4.3},
-        {"structure": 42, "crowding": 60, "rsi": 46, "chg": -2.4, "atr": -0.3, "above": False, "risks": [], "vol": 1.2, "excess": -1.5},
-        {"structure": 55, "crowding": 74, "rsi": 72, "chg": 4.2, "atr": 1.8, "above": True, "risks": ["延伸過遠"], "vol": 2.1, "excess": 3.0},
-        {"structure": 48, "crowding": 82, "rsi": 76, "chg": 7.4, "atr": 2.1, "above": True, "risks": ["今日大漲"], "vol": 2.4, "excess": 4.1},
-        {"structure": 40, "crowding": 88, "rsi": 83, "chg": 9.7, "atr": 2.8, "above": True, "risks": ["接近漲停"], "vol": 2.8, "excess": 6.0},
-        {"structure": 38, "crowding": 79, "rsi": 41, "chg": -6.2, "atr": -0.8, "above": False, "risks": ["放量長陰"], "vol": 2.2, "excess": -5.0},
+        {"structure": 78, "crowding": 28, "rsi": 57, "chg": 0.8, "atr": 0.4, "above": True, "risks": [], "vol": 1.3, "excess": 1.2, "trust": 800000, "foreign": 200000, "streak": 3},
+        {"structure": 72, "crowding": 36, "rsi": 54, "chg": -0.5, "atr": 0.6, "above": True, "risks": [], "vol": 1.1, "excess": 0.4, "trust": 120000, "foreign": 50000, "streak": 1},
+        {"structure": 64, "crowding": 48, "rsi": 61, "chg": 1.2, "atr": 1.1, "above": True, "risks": [], "vol": 1.0, "excess": 0.2, "trust": 0, "foreign": 10000, "streak": 0},
+        {"structure": 58, "crowding": 52, "rsi": 66, "chg": 2.1, "atr": 1.4, "above": True, "risks": [], "vol": 0.95, "excess": -0.3, "trust": -20000, "foreign": 8000, "streak": 0},
+        {"structure": 74, "crowding": 26, "rsi": 57, "chg": -0.9, "atr": 0.2, "above": True, "risks": [], "vol": 0.48, "excess": -4.3, "trust": 0, "foreign": -90000, "streak": 0},
+        {"structure": 42, "crowding": 60, "rsi": 46, "chg": -2.4, "atr": -0.3, "above": False, "risks": [], "vol": 1.2, "excess": -1.5, "trust": -50000, "foreign": -80000, "streak": 0},
+        {"structure": 55, "crowding": 74, "rsi": 72, "chg": 4.2, "atr": 1.8, "above": True, "risks": ["延伸過遠"], "vol": 2.1, "excess": 3.0, "trust": 30000, "foreign": 40000, "streak": 1},
+        {"structure": 48, "crowding": 82, "rsi": 76, "chg": 7.4, "atr": 2.1, "above": True, "risks": ["今日大漲"], "vol": 2.4, "excess": 4.1, "trust": 10000, "foreign": 20000, "streak": 0},
+        {"structure": 40, "crowding": 88, "rsi": 83, "chg": 9.7, "atr": 2.8, "above": True, "risks": ["接近漲停"], "vol": 2.8, "excess": 6.0, "trust": 0, "foreign": 0, "streak": 0},
+        {"structure": 38, "crowding": 79, "rsi": 41, "chg": -6.2, "atr": -0.8, "above": False, "risks": ["放量長陰"], "vol": 2.2, "excess": -5.0, "trust": -90000, "foreign": -120000, "streak": 0},
     ]
     cands: list[Candidate] = []
-    for i, (code, name) in enumerate(sample_names):
+    for i, (code, name, kind) in enumerate(sample_names):
         spec = archetypes[i] if i < len(archetypes) else {
             "structure": round(float(rng.uniform(40, 75)), 1),
             "crowding": round(float(rng.uniform(25, 70)), 1),
@@ -880,34 +1416,49 @@ def build_demo_output(top_n: int) -> dict:
             "atr": round(float(rng.uniform(-0.2, 1.6)), 2),
             "above": True,
             "risks": [],
+            "vol": round(float(rng.uniform(0.9, 1.8)), 2),
+            "excess": round(float(rng.uniform(-0.5, 2.0)), 2),
+            "trust": 0,
+            "foreign": 0,
+            "streak": 0,
         }
         structure = float(spec["structure"])
         crowding = float(spec["crowding"])
-        px = round(float(rng.uniform(30, 200)), 1)
+        px = round(float(rng.uniform(15, 40 if kind == "etf" else 200)), 2)
         atr_abs = round(px * 0.025, 2)
+        tags = ["ETF" if kind == "etf" else "個股"]
+        if spec.get("streak", 0) >= 3:
+            tags.append("投信連3日買超")
+        elif spec.get("trust", 0) > 0:
+            tags.append("投信買超")
         cands.append(
             Candidate(
                 code=code,
                 name=name,
                 close=px,
                 change_pct=float(spec["chg"]),
+                kind=kind,
                 structure=structure,
                 crowding=crowding,
                 score=round(structure - CROWDING_PENALTY * crowding, 1),
-                tags=["強於大盤"] if crowding > 50 else [],
+                tags=tags,
                 risk_tags=list(spec["risks"]),
                 detail={
+                    "kind": kind,
                     "rsi14": spec["rsi"],
-                    "vol_ratio_20d": float(spec.get("vol", round(float(rng.uniform(0.9, 1.8)), 2))),
+                    "vol_ratio_20d": float(spec.get("vol", 1.0)),
                     "above_ma20": bool(spec["above"]),
                     "atr_extension": spec["atr"],
                     "dist_from_high_20d_pct": round(float(rng.uniform(0.3, 7.0)), 2),
-                    "excess_5d_pct": float(spec.get("excess", round(float(rng.uniform(-0.5, 2.0)), 2))),
+                    "excess_5d_pct": float(spec.get("excess", 0.0)),
                     "atr": atr_abs,
                     "ma5": round(px * 0.985, 2),
                     "ma20": round(px * 0.97, 2),
                     "swing_low_10": round(px * 0.94, 2),
                     "swing_high_20": round(px * 1.05, 2),
+                    "trust_net": spec.get("trust"),
+                    "foreign_net": spec.get("foreign"),
+                    "trust_streak": spec.get("streak", 0),
                     "factors": {
                         "trend": 70, "rsi": 70, "not_extended": 60,
                         "volume": 40, "relative": 40, "day_move": 40,
@@ -915,7 +1466,19 @@ def build_demo_output(top_n: int) -> dict:
                 },
             )
         )
-    assign_actions(cands)
+    market = {
+        "regime": "risk_on",
+        "label": "偏多可做",
+        "above_ma20": True,
+        "ma20": 45000.0,
+        "close": 45800.0,
+        "note": "demo 預覽用的假市場燈號。",
+    }
+    assign_actions(cands, market["regime"])
+    demo_trim = [c for c in cands if c.action == "trim"][:2]
+    demo_exit = [c for c in cands if c.action == "exit"][:2]
+    for c in demo_trim + demo_exit:
+        c.reason = "日前推薦(demo) " + c.reason
     as_of = taipei_today()
     output = build_output(
         cands,
@@ -933,10 +1496,21 @@ def build_demo_output(top_n: int) -> dict:
             "note": "demo 預覽用的假回顧數字。",
         },
         as_of,
+        market,
+        build_lazy_pack(cands, demo_trim, demo_exit),
     )
     output["demo"] = True
     output["methodology"]["note"] = "這是 demo 假資料,僅供預覽畫面用,不是真實掃描結果。"
     return output
+
+
+def tracked_candidates(candidates: list[Candidate], top_n: int) -> list[Candidate]:
+    ranked = sorted(candidates, key=lambda c: c.score, reverse=True)[:top_n]
+    by_code = {c.code: c for c in ranked}
+    for c in candidates:
+        if c.action in ("strong_buy", "scale_in"):
+            by_code[c.code] = c
+    return list(by_code.values())
 
 
 # ---- main -------------------------------------------------------------
@@ -957,23 +1531,39 @@ def main():
     else:
         print("[1/4] 抓取 TWSE 全市場快照...")
         snapshot = fetch_market_snapshot()
-        print(f"      取得 {len(snapshot)} 檔股票的今日快照")
+        as_of = str(snapshot["as_of"].dropna().iloc[0])
+        blocked = fetch_restricted_codes()
+        official_taiex_close, official_taiex_chg = fetch_taiex_official()
+        inst_map = fetch_t86_map(as_of)
 
         print("[2/4] 流動性初篩...")
-        pool = screen_candidates(snapshot)
-        print(f"      候選池: {len(pool)} 檔")
+        pool = screen_candidates(snapshot, blocked)
+        print(f"      候選池: {len(pool)} 檔(個股 {int((pool.kind=='stock').sum())} / ETF {int((pool.kind=='etf').sum())})")
 
         print("[3/4] 抓取歷史K線並計算指標(需要幾分鐘,請耐心等候)...")
         hist_map = fetch_history(pool["code"].tolist())
         taiex_hist = hist_map.get(TAIEX_TICKER)
-        taiex_change_pct = None
-        if taiex_hist is not None and len(taiex_hist["Close"].dropna()) >= 2:
-            c = taiex_hist["Close"].dropna()
+        market = market_regime(taiex_hist, official_taiex_close, as_of)
+        taiex_change_pct = official_taiex_chg
+        if taiex_change_pct is None and taiex_hist is not None and len(taiex_hist["Close"].dropna()) >= 2:
+            c = overlay_last_bar(
+                taiex_hist, as_of,
+                {"close": official_taiex_close} if official_taiex_close else None,
+            )["Close"].dropna()
             taiex_change_pct = round(float((c.iloc[-1] / c.iloc[-2] - 1) * 100), 2)
+        if isinstance(taiex_change_pct, (int, float)):
+            taiex_change_pct = round(float(taiex_change_pct), 2)
 
-        twse_close_map = dict(zip(pool["code"].astype(str), pool["close"]))
+        bar_map = {
+            str(r.code): {
+                "open": r.open, "high": r.high, "low": r.low,
+                "close": r.close, "volume": r.volume,
+            }
+            for r in pool.itertuples()
+        }
         twse_chg_map = dict(zip(pool["code"].astype(str), pool["change_pct"]))
         name_map = dict(zip(pool["code"].astype(str), pool["name"]))
+        kind_map = dict(zip(pool["code"].astype(str), pool["kind"]))
 
         rows: list[FeatureRow] = []
         for code, hist in hist_map.items():
@@ -982,10 +1572,13 @@ def main():
             feat = extract_features(
                 code,
                 name_map.get(code, code),
+                kind_map.get(code, security_kind(code) or "stock"),
                 hist,
                 taiex_hist,
-                twse_close_map.get(code),
+                bar_map.get(code),
                 twse_chg_map.get(code),
+                as_of,
+                inst_map.get(code),
             )
             if feat:
                 rows.append(feat)
@@ -993,20 +1586,23 @@ def main():
 
         print("[4/4] 排序並輸出...")
         candidates = rank_features(rows)
-        assign_actions(candidates)
-        as_of = taipei_today()
+        assign_actions(candidates, market.get("regime") or "unknown")
         snap_path = snapshots_path_for(out_path)
         history = load_snapshots(snap_path)
         review = build_review(history, snapshot, as_of, taiex_change_pct)
-        output = build_output(candidates, args.top, taiex_change_pct, review, as_of)
+        trim_items, exit_items = build_exit_from_history(
+            candidates, history, as_of, snapshot, blocked,
+        )
+        lazy_pack = build_lazy_pack(candidates, trim_items, exit_items)
+        output = build_output(
+            candidates, args.top, taiex_change_pct, review, as_of, market, lazy_pack,
+        )
 
         today_entry = {
             "date": as_of,
             "taiex_change_pct": taiex_change_pct,
-            "candidates": [
-                {"code": c.code, "name": c.name, "close": c.close, "score": c.score}
-                for c in sorted(candidates, key=lambda x: x.score, reverse=True)[: args.top]
-            ],
+            "market_regime": market.get("regime"),
+            "candidates": [snapshot_entry(c) for c in tracked_candidates(candidates, args.top)],
         }
         history = [d for d in history if d.get("date") != as_of]
         history.append(today_entry)

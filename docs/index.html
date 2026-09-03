@@ -72,6 +72,51 @@
     border-radius:var(--radius);
     font-size:11px;
   }
+  .climate{
+    margin-top:16px;
+    border:1px solid var(--rule);
+    background:var(--panel);
+    padding:10px 12px;
+    font-size:13px;
+  }
+  .climate.risk_on{border-color:var(--gold);}
+  .climate.risk_off{border-color:var(--up);}
+  .climate .lab{
+    font-weight:700;
+    margin-right:8px;
+  }
+  .climate.risk_on .lab{color:var(--gold);}
+  .climate.risk_off .lab{color:var(--up);}
+  .climate .note{color:var(--text-dim);font-size:12.5px;margin-top:4px;}
+  .kind-tag{
+    font-family:var(--mono);
+    font-size:10px;
+    border:1px solid var(--rule);
+    color:var(--text-dim);
+    padding:0 5px;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+  .kind-tag.etf{color:var(--gold);border-color:var(--gold);}
+  .filters{
+    display:flex;
+    gap:8px;
+    margin:0 0 8px;
+  }
+  .filters button{
+    background:transparent;
+    color:var(--text-dim);
+    border:1px solid var(--rule);
+    font-family:var(--sans);
+    font-size:12px;
+    padding:4px 10px;
+    cursor:pointer;
+  }
+  .filters button.active{
+    color:var(--text);
+    border-color:var(--gold);
+    color:var(--gold);
+  }
 
   /* ---- disclaimer strip ---- */
   .disclaimer{
@@ -384,12 +429,13 @@
     <h1>短線雷達</h1>
     <p class="tagline">臺股 1–2 週波段參考清單 · 技術面規則篩選</p>
     <div class="meta-row" id="metaRow">載入中...</div>
+    <div class="climate" id="climateBox" style="display:none;"></div>
   </div>
 </header>
 
 <div class="disclaimer">
   <div class="inner">
-    本頁只提供可覆核的價量規則與區間,不是投資建議,也不保證獲利。沒有法人籌碼或特定分析師內部模型。出場清單假設你已經持有;進出場請自行判斷並自負風險。
+    本頁只提供可覆核的價量規則、公開三大法人買賣超與區間,不是投資建議,也不保證獲利。出場欄只追蹤本系統日前推薦過的標的;進出場請自行判斷並自負風險。
   </div>
 </div>
 
@@ -412,7 +458,7 @@
     <div class="lazy-grid">
       <div class="lazy-col watch-col" id="pack-watch"></div>
     </div>
-    <div class="lazy-group-label">出場建議（僅限已持有）</div>
+    <div class="lazy-group-label">日前推薦追蹤 · 出場建議</div>
     <div class="lazy-grid">
       <div class="lazy-col trim" id="pack-trim"></div>
       <div class="lazy-col exit" id="pack-exit"></div>
@@ -427,7 +473,12 @@
   </div>
 
   <h2 class="board-title">觀察清單</h2>
-  <p class="board-sub">依觀察分排序,用來縮小範圍,不是依名次進場。</p>
+  <p class="board-sub">依觀察分排序,用來縮小範圍,不是依名次進場。個股與 ETF 分開標示。</p>
+  <div class="filters" id="kindFilters">
+    <button type="button" data-kind="all" class="active">全部</button>
+    <button type="button" data-kind="stock">個股</button>
+    <button type="button" data-kind="etf">ETF</button>
+  </div>
 
   <div class="board">
     <div class="board-head">
@@ -486,10 +537,30 @@ function signedClass(n) {
   return n >= 0 ? "up" : "down";
 }
 
+function kindLabel(kind) {
+  if (kind === "etf") return `<span class="kind-tag etf">ETF</span>`;
+  if (kind === "stock") return `<span class="kind-tag">個股</span>`;
+  return "";
+}
+
+function renderClimate(market) {
+  const el = document.getElementById("climateBox");
+  if (!market || !market.label) {
+    el.style.display = "none";
+    return;
+  }
+  const cls = market.regime === "risk_off" ? "risk_off" : (market.regime === "risk_on" ? "risk_on" : "");
+  el.className = `climate ${cls}`;
+  el.style.display = "block";
+  const extra = market.above_ma20 === true ? "指數站上 20MA" : (market.above_ma20 === false ? "指數在 20MA 之下" : "");
+  el.innerHTML = `<div><span class="lab">市場氣候 · ${market.label}</span>${extra ? `<span class="dot">·</span> ${extra}` : ""}</div><div class="note">${market.note || ""}</div>`;
+}
+
 function renderMeta(data) {
   const el = document.getElementById("metaRow");
   const parts = [];
   parts.push(fmtUpdatedAt(data.updated_at));
+  if (data.as_of) parts.push(`<span class="dot">·</span>交易日 ${data.as_of}`);
   if (typeof data.taiex_change_pct === "number") {
     const cls = data.taiex_change_pct >= 0 ? "taiex-up" : "taiex-down";
     parts.push(`<span class="dot">·</span><span class="${cls}">大盤 ${fmtSigned(data.taiex_change_pct)}%</span>`);
@@ -501,6 +572,7 @@ function renderMeta(data) {
   }
   if (data.demo) parts.push(`<span class="demo-flag">DEMO 預覽資料</span>`);
   el.innerHTML = parts.join(" ");
+  renderClimate(data.market);
 }
 
 function renderReview(review) {
@@ -559,6 +631,8 @@ function factorLine(detail) {
   if (detail && detail.rsi14 != null) extras.push(`RSI值 <b>${detail.rsi14}</b>`);
   if (detail && detail.vol_ratio_20d != null) extras.push(`量比 <b>${detail.vol_ratio_20d}</b>`);
   if (detail && detail.atr_extension != null) extras.push(`ATR延伸 <b>${detail.atr_extension}</b>`);
+  if (detail && detail.trust_streak >= 3) extras.push(`投信連買 <b>${detail.trust_streak}日</b>`);
+  else if (detail && detail.trust_net != null) extras.push(`投信 <b>${detail.trust_net > 0 ? "+" : ""}${detail.trust_net}</b>`);
   return `<span>結構因子 ${struct}</span><span class="sep">/</span><span>擁擠因子 ${crowd}</span>${extras.length ? `<span class="sep">/</span><span>${extras.join(" ")}</span>` : ""}`;
 }
 
@@ -588,7 +662,7 @@ function renderLazyPack(pack) {
       const changeCls = c.change_pct >= 0 ? "up" : "down";
       return `<div class="lazy-item">
         <div class="top">
-          <div><span class="code">${c.code}</span>${c.name}</div>
+          <div><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}</div>
           <div class="px">${closeText(c.close)} <span class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</span></div>
         </div>
         <div class="why">${c.reason || ""} · 結構 ${Number(c.structure || 0).toFixed(0)} / 擁擠 ${Number(c.crowding || 0).toFixed(0)}</div>
@@ -637,7 +711,7 @@ function renderTradeTable(pack) {
         const entry = p.entry_low != null ? `${px(p.entry_low)}–${px(p.entry_high)}` : "—";
         return `<tr>
           <td>${c.action_label || ""}</td>
-          <td class="name"><span class="code">${c.code}</span> ${c.name}</td>
+          <td class="name"><span class="code">${c.code}</span> ${c.name}${kindLabel(c.kind)}</td>
           <td>${px(c.close)}</td>
           <td>${entry}</td>
           <td class="stop">${px(p.stop)}${p.risk_pct != null ? ` (${p.risk_pct}%)` : ""}</td>
@@ -665,13 +739,13 @@ function renderRows(candidates) {
   rowsEl.innerHTML = candidates.map((c, i) => {
     const changeCls = c.change_pct >= 0 ? "up" : "down";
     const crowdCls = (c.crowding || 0) >= 70 ? "high" : "";
-    const cond = (c.tags || []).map(t => `<span class="tag hot">${t}</span>`).join("");
+    const cond = (c.tags || []).filter((t) => t !== "個股" && t !== "ETF").map(t => `<span class="tag hot">${t}</span>`).join("");
     const risk = (c.risk_tags || []).map(t => `<span class="tag risk">${t}</span>`).join("");
     return `
       <div class="row">
         <div class="row-main">
           <div class="col-rank">${i + 1}</div>
-          <div class="col-name"><span class="code">${c.code}</span>${c.name}${c.action_label ? `<span class="action-flag ${c.action || ""}">${c.action_label}</span>` : ""}</div>
+          <div class="col-name"><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}${c.action_label ? `<span class="action-flag ${c.action || ""}">${c.action_label}</span>` : ""}</div>
           <div class="col-price">${closeText(c.close)}</div>
           <div class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</div>
           <div class="col-struct">${Number(c.structure || 0).toFixed(0)}</div>
@@ -697,7 +771,20 @@ async function init() {
   renderLazyPack(data.lazy_pack);
   renderTradeTable(data.lazy_pack);
   renderWeights(data.methodology);
-  renderRows(data.candidates || []);
+  const allRows = data.candidates || [];
+  let kindFilter = "all";
+  const applyFilter = () => {
+    const rows = kindFilter === "all" ? allRows : allRows.filter((c) => (c.kind || "stock") === kindFilter);
+    renderRows(rows);
+  };
+  document.querySelectorAll("#kindFilters button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      kindFilter = btn.dataset.kind;
+      document.querySelectorAll("#kindFilters button").forEach((b) => b.classList.toggle("active", b === btn));
+      applyFilter();
+    });
+  });
+  applyFilter();
   const methodEl = document.getElementById("methodBody");
   if (data.methodology && data.methodology.ranking) {
     methodEl.textContent = `排序規則:${data.methodology.ranking}。${data.methodology.note || ""}`;
