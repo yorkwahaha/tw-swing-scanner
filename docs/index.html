@@ -226,6 +226,7 @@
   .row-factors b{color:var(--text);font-weight:500;}
   .row-factors .sep{opacity:.4;}
 
+  .col-vol{display:none;}
   .empty{
     padding:48px 10px;
     text-align:center;
@@ -402,18 +403,33 @@
   @media (max-width:720px){
     .board-head{display:none;}
     .row-main{
-      grid-template-columns:1fr 1fr;
+      grid-template-columns:repeat(3, 1fr);
       gap:6px;
       padding:14px 10px 6px;
     }
-    .col-rank{text-align:left;}
-    .col-rank::before{content:"排名 ";color:var(--text-dim);}
-    .col-name{grid-column:1 / -1;}
+    .col-rank{display:none;}
+    .col-name{
+      grid-column:1 / -1;
+      text-align:left;
+    }
+    .col-name::before{
+      content:"#" attr(data-rank) " ";
+      font-family:var(--mono);
+      color:var(--text-dim);
+      font-size:12px;
+    }
     .col-price::before{content:"現價 ";color:var(--text-dim);}
     .col-change::before{content:"漲跌 ";color:var(--text-dim);}
     .col-score::before{content:"總分 ";color:var(--text-dim);}
     .col-struct::before{content:"結構 ";color:var(--text-dim);}
     .col-crowd::before{content:"擁擠 ";color:var(--text-dim);}
+    .col-vol{
+      display:block;
+      font-family:var(--mono);
+      text-align:right;
+      white-space:nowrap;
+    }
+    .col-vol::before{content:"量比 ";color:var(--text-dim);}
     .col-tags{grid-column:1 / -1;justify-content:flex-start;}
     .row-factors{padding:0 10px 8px;}
     .lazy-grid{grid-template-columns:1fr;}
@@ -740,7 +756,7 @@ function renderTradeTable(pack) {
           <td>${entry}</td>
           <td class="stop">${px(p.stop)}${p.risk_pct != null ? ` (${p.risk_pct}%)` : ""}</td>
           <td class="tp">${px(p.tp1)}${p.tp1_pct != null ? ` (+${p.tp1_pct}%)` : ""}${p.rr1 != null ? ` / ${p.rr1}R` : ""}</td>
-          <td class="tp">${px(p.tp2)}${p.tp2_pct != null ? ` (+${p.tp2_pct}%)` : ""}</td>
+          <td class="tp">${px(p.tp2)}${p.tp2_pct != null ? ` (+${p.tp2_pct}%)` : ""}${p.rr2 != null ? ` / ${p.rr2}R` : ""}</td>
           <td>${p.headroom_pct != null ? `${fmtSigned(p.headroom_pct)}%` : "—"}</td>
           <td>${px(p.resistance_20d)}</td>
           <td>收盤跌破 ${px(p.invalid_below)}</td>
@@ -769,12 +785,13 @@ function renderRows(candidates) {
       <div class="row">
         <div class="row-main">
           <div class="col-rank">${i + 1}</div>
-          <div class="col-name"><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}${c.action_label ? `<span class="action-flag ${c.action || ""}">${c.action_label}</span>` : ""}</div>
+          <div class="col-name" data-rank="${i + 1}"><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}${c.action_label ? `<span class="action-flag ${c.action || ""}">${c.action_label}</span>` : ""}</div>
           <div class="col-price">${closeText(c.close)}</div>
           <div class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</div>
           <div class="col-score">${c.score != null ? Number(c.score).toFixed(1) : "—"}</div>
           <div class="col-struct">${Number(c.structure || 0).toFixed(0)}</div>
           <div class="col-crowd ${crowdCls}">${Number(c.crowding || 0).toFixed(0)}</div>
+          <div class="col-vol">${c.detail && c.detail.vol_ratio_20d != null ? Number(c.detail.vol_ratio_20d).toFixed(2) : "—"}</div>
           <div class="col-tags">${cond}${risk}</div>
         </div>
         <div class="row-factors">${factorLine(c.detail)}</div>

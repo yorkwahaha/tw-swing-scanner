@@ -918,6 +918,8 @@ def classify_action(c: Candidate, regime: str) -> tuple[str, str]:
         and rsi_scale
         and c.change_pct < BIG_UP_PCT
         and (atr is not None and atr < 2.2)
+        and vol is not None
+        and excess is not None
         and not both_sold
     ):
         return "scale_in", "結構尚可且不是冷清量能,適合分批而不是一次買滿"
@@ -1361,14 +1363,26 @@ def save_snapshots(path: Path, days: list[dict]) -> None:
     )
 
 
-def _avg_return(prev_candidates: list[dict], today_map: dict[str, float]) -> tuple[float | None, int]:
+def _avg_return(
+    prev_candidates: list[dict],
+    today_map: dict[str, float],
+    chg_map: dict[str, float] | None = None,
+) -> tuple[float | None, int]:
+    """1 日對帳可傳官方漲跌幅(已除權息校正);沒有則退回收盤價比。"""
     rets = []
     for item in prev_candidates:
         code = str(item.get("code", ""))
-        prev_close = item.get("close")
-        today_close = today_map.get(code)
-        if prev_close and today_close and prev_close > 0:
-            rets.append(today_close / prev_close - 1)
+        used = False
+        if chg_map is not None and code in chg_map:
+            chg = chg_map.get(code)
+            if chg is not None and not pd.isna(chg):
+                rets.append(float(chg) / 100.0)
+                used = True
+        if not used:
+            prev_close = item.get("close")
+            today_close = today_map.get(code)
+            if prev_close and today_close and prev_close > 0:
+                rets.append(today_close / prev_close - 1)
     if not rets:
         return None, 0
     return round(float(np.mean(rets) * 100), 2), len(rets)
@@ -1389,8 +1403,9 @@ def build_review(
         return None
 
     today_map = dict(zip(today_df["code"].astype(str), today_df["close"].astype(float)))
+    today_chg = dict(zip(today_df["code"].astype(str), today_df["change_pct"].astype(float)))
     prev = usable[-1]
-    avg_1d, n_1d = _avg_return(prev.get("candidates") or [], today_map)
+    avg_1d, n_1d = _avg_return(prev.get("candidates") or [], today_map, today_chg)
     review = {
         "prev_date": prev["date"],
         "n": n_1d,
@@ -1404,7 +1419,7 @@ def build_review(
         "excess_5d": None,
         "n_5d": 0,
         "from_date_5d": None,
-        "note": "清單報酬與大盤日報酬都用證交所收盤價對帳;as_of 是快照交易日而非執行當日。",
+        "note": "1日清單報酬優先用證交所官方漲跌幅(已除權息校正);5日仍用收盤價比。as_of 是快照交易日而非執行當日。",
     }
 
     if len(usable) >= 5:

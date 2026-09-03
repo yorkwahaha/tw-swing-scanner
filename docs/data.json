@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-04T07:38:20.833142+08:00",
+  "updated_at": "2026-09-04T07:56:02.270608+08:00",
   "as_of": "2026-09-03",
   "taiex_change_pct": -0.67,
   "market": {
@@ -37,15 +37,15 @@
   "review": {
     "prev_date": "2026-09-02",
     "n": 20,
-    "avg_return_1d": -4.47,
+    "avg_return_1d": -3.31,
     "taiex_return_1d": -0.67,
-    "excess_1d": -3.8,
+    "excess_1d": -2.64,
     "avg_return_5d": null,
     "taiex_return_5d": null,
     "excess_5d": null,
     "n_5d": 0,
     "from_date_5d": null,
-    "note": "清單報酬與大盤日報酬都用證交所收盤價對帳;as_of 是快照交易日而非執行當日。"
+    "note": "1日清單報酬優先用證交所官方漲跌幅(已除權息校正);5日仍用收盤價比。as_of 是快照交易日而非執行當日。"
   },
   "lazy_pack": {
     "strong_buy": {
