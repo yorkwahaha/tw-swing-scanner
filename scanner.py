@@ -77,6 +77,7 @@ CANDIDATE_POOL_SIZE = 300                # 進入歷史資料階段的候選檔�
 HISTORY_DAYS = "1y"                      # Wilder RSI/ATR 需要足夠暖身才接近券商數值
 TOP_N_DEFAULT = 20
 TOP_N_ETF_DEFAULT = 10
+MIXED_ETF_SLOTS = 5                 # 混合榜 ETF 上限,不足時由個股補滿至 top_n
 SNAPSHOTS_KEEP_DAYS = 30
 EXIT_LOOKBACK_DAYS = 10
 MISSING_RELATIVE_PENALTY = 3.0           # 缺相對大盤資料略扣,不可優於確定小輸大盤
@@ -1068,30 +1069,34 @@ def _action_sort_key(c: Candidate) -> tuple:
     return (-c.score, c.crowding)
 
 
+def _day_track_items(day: dict) -> list:
+    """新快照用 tracked_pool 做出場追蹤;舊快照沒有此欄就退回 candidates。"""
+    pool = day.get("tracked_pool")
+    if isinstance(pool, list) and pool:
+        return pool
+    return day.get("candidates") or []
+
+
 def collect_prior_recs(history_days: list[dict], today_date: str) -> dict[str, dict]:
     usable = sorted(
         [d for d in history_days if d.get("date") and d["date"] != today_date],
         key=lambda d: str(d["date"]),
     )[-EXIT_LOOKBACK_DAYS:]
     recs: dict[str, dict] = {}
-    closed: set[str] = set()
     for day in usable:
-        for raw in day.get("closed") or []:
-            code = str(raw).strip().upper()
-            if code:
-                closed.add(code)
-        for item in day.get("candidates") or []:
+        for item in _day_track_items(day):
             code = str(item.get("code", "")).strip().upper()
             if not code:
                 continue
             action = item.get("action")
-            if action == "exit":
-                closed.add(code)
-                continue
-            tracked = action in ("strong_buy", "scale_in") or action is None
-            if tracked and code not in recs and code not in closed:
-                recs[code] = {**item, "rec_date": day["date"]}
-    return {k: v for k, v in recs.items() if k not in closed}
+            if action in ("strong_buy", "scale_in") or action is None:
+                if code not in recs:
+                    recs[code] = {**item, "rec_date": day["date"]}
+        for raw in day.get("closed") or []:
+            code = str(raw).strip().upper()
+            if code:
+                recs.pop(code, None)
+    return recs
 
 
 def _round2(value, default: float = 0.0) -> float:
@@ -1182,8 +1187,26 @@ def build_exit_from_history(
             continue
         live = by_code.get(code)
 
-        if live and live.action in ("trim", "exit"):
-            why = holder_reason(live.action, live, live.reason)
+        stop, tp1, tp2 = rec.get("stop"), rec.get("tp1"), rec.get("tp2")
+        live_ma20 = (live.detail or {}).get("ma20") if live else None
+        ma20 = live_ma20 if live_ma20 not in (None, "") else rec.get("ma20")
+        above = (live.detail or {}).get("above_ma20") if live else None
+        reason = None
+        action = None
+        # 硬停損 / 破均線 / 停利優先於 classify_action 的技術減碼(今日大跌等)
+        if stop and px <= float(stop):
+            action, reason = "exit", f"跌破停損 {stop}"
+        elif (live is not None and above is False) or (live is None and ma20 and px < float(ma20)):
+            action, reason = "exit", f"收盤跌破20日均線 {ma20}"
+        elif tp2 and px >= float(tp2):
+            action, reason = "exit", f"已達停利2 {tp2}"
+        elif tp1 and px >= float(tp1):
+            action, reason = "trim", f"已達停利1 {tp1}"
+        elif live and live.action in ("trim", "exit"):
+            action, reason = live.action, holder_reason(live.action, live, live.reason)
+        if not action:
+            continue
+        if live:
             item = Candidate(
                 code=live.code,
                 name=live.name,
@@ -1196,49 +1219,23 @@ def build_exit_from_history(
                 tags=live.tags,
                 risk_tags=live.risk_tags,
                 detail=live.detail,
-                action=live.action,
-                action_label=live.action_label,
-                reason=prefix + why,
+                action=action,
+                action_label=ACTION_LABELS[action],
+                reason=prefix + reason,
                 plan=live.plan,
             )
-            (exits if live.action == "exit" else trims).append(item)
-            continue
-
-        stop, tp1, tp2 = rec.get("stop"), rec.get("tp1"), rec.get("tp2")
-        live_ma20 = (live.detail or {}).get("ma20") if live else None
-        ma20 = live_ma20 if live_ma20 not in (None, "") else rec.get("ma20")
-        above = (live.detail or {}).get("above_ma20") if live else None
-        reason = None
-        action = None
-        if stop and px <= float(stop):
-            action, reason = "exit", f"跌破停損 {stop}"
-        elif live is not None and above is False:
-            action, reason = "exit", f"收盤跌破20日均線 {ma20}"
-        elif live is None and ma20 and px < float(ma20):
-            action, reason = "exit", f"收盤跌破20日均線 {ma20}"
-        elif tp2 and px >= float(tp2):
-            action, reason = "exit", f"已達停利2 {tp2}"
-        elif tp1 and px >= float(tp1):
-            action, reason = "trim", f"已達停利1 {tp1}"
-        if not action:
-            continue
-        item = Candidate(
-            code=code,
-            name=str(rec.get("name") or today_name.get(code, code)),
-            close=_round2(px),
-            change_pct=_round2(today_chg.get(code)),
-            kind=str(rec.get("kind") or ("etf" if security_kind(code) == "etf" else "stock")),
-            structure=float(live.structure) if live else 0.0,
-            crowding=float(live.crowding) if live else 0.0,
-            score=float(live.score) if live else 0.0,
-            tags=["日前推薦"],
-            risk_tags=[],
-            detail=(live.detail if live else {}),
-            action=action,
-            action_label=ACTION_LABELS[action],
-            reason=prefix + reason,
-            plan=live.plan if live else None,
-        )
+        else:
+            item = Candidate(
+                code=code,
+                name=str(rec.get("name") or today_name.get(code, code)),
+                close=_round2(px),
+                change_pct=_round2(today_chg.get(code)),
+                kind=str(rec.get("kind") or ("etf" if security_kind(code) == "etf" else "stock")),
+                tags=["日前推薦"],
+                action=action,
+                action_label=ACTION_LABELS[action],
+                reason=prefix + reason,
+            )
         (exits if action == "exit" else trims).append(item)
     return trims, exits
 
@@ -1410,7 +1407,9 @@ def snapshot_entry(c: Candidate) -> dict:
 def split_ranked(candidates: list[Candidate], top_n: int, top_n_etf: int) -> tuple[list[Candidate], list[Candidate], list[Candidate]]:
     stocks = sorted([c for c in candidates if c.kind == "stock"], key=lambda c: c.score, reverse=True)[:top_n]
     etfs = sorted([c for c in candidates if c.kind == "etf"], key=lambda c: c.score, reverse=True)[:top_n_etf]
-    mixed = sorted(stocks[:15] + etfs[:5], key=lambda c: c.score, reverse=True)
+    etf_take = min(MIXED_ETF_SLOTS, len(etfs))
+    stock_take = max(0, top_n - etf_take)
+    mixed = sorted(stocks[:stock_take] + etfs[:etf_take], key=lambda c: c.score, reverse=True)
     if not mixed:
         mixed = sorted(candidates, key=lambda c: c.score, reverse=True)[:top_n]
     return mixed, stocks, etfs
@@ -1437,7 +1436,7 @@ def build_output(
         "methodology": {
             "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
             "rsi": "RSI(14, Wilder)",
-            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 漲跌停/大漲大跌降權 + 法人加減分。個股與 ETF 分開取榜。",
+            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 漲跌停/大漲大跌降權 + 法人加減分。個股與 ETF 分開取榜。混合榜固定 20 檔,ETF 最多 5 檔、不足由個股補滿。",
             "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;缺資料不當成強勢。大盤在20MA下不發強力推薦。出場只追蹤日前推薦,出清後隔天不再重複警告。",
             "trade_plan": "進場等回檔至MA5;停損1.5×ATR且不少於 max(1×ATR, 2.5%);停利1.5R/2.5R。ETF 用 ETF 檔位。",
             "weights": {
@@ -1682,11 +1681,13 @@ def main():
             candidates, args.top, taiex_change_pct, review, as_of, market, lazy_pack,
         )
 
+        mixed, _, _ = split_ranked(candidates, args.top, TOP_N_ETF_DEFAULT)
         today_entry = {
             "date": as_of,
             "taiex_change_pct": taiex_change_pct,
             "market_regime": market.get("regime"),
-            "candidates": [snapshot_entry(c) for c in tracked_candidates(candidates, args.top)],
+            "candidates": [snapshot_entry(c) for c in mixed],
+            "tracked_pool": [snapshot_entry(c) for c in tracked_candidates(candidates, args.top)],
             "closed": [c.code for c in exit_items],
         }
         history = [d for d in history if d.get("date") != as_of]

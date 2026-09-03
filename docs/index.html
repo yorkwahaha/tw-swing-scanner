@@ -473,7 +473,7 @@
   </div>
 
   <h2 class="board-title">觀察清單</h2>
-  <p class="board-sub">個股與 ETF 分開取榜。全部=個股前 15 + ETF 前 5;切換按鈕可看個股前 20 或 ETF 前 10。</p>
+  <p class="board-sub">個股與 ETF 分開取榜。全部=個股前 15 + ETF 前 5（ETF 不足時由個股補滿 20 檔）;切換按鈕可看個股前 20 或 ETF 前 10。</p>
   <div class="filters" id="kindFilters">
     <button type="button" data-kind="all" class="active">全部</button>
     <button type="button" data-kind="stock">個股</button>
@@ -633,8 +633,12 @@ function factorLine(detail) {
   if (detail && detail.atr_extension != null) extras.push(`ATR延伸 <b>${detail.atr_extension}</b>`);
   if (detail && detail.trust_streak >= 3) extras.push(`投信連買 <b>${detail.trust_streak}日</b>`);
   if (detail && detail.trust_net != null) {
-    const lots = fmtLots(detail.trust_net);
-    if (lots != null) extras.push(`投信 <b>${lots} 張</b>`);
+    const tLots = fmtLots(detail.trust_net);
+    if (tLots && tLots !== "0") extras.push(`投信 <b>${tLots} 張</b>`);
+  }
+  if (detail && detail.foreign_net != null) {
+    const fLots = fmtLots(detail.foreign_net);
+    if (fLots && fLots !== "0") extras.push(`外資 <b>${fLots} 張</b>`);
   }
   return `<span>結構因子 ${struct}</span><span class="sep">/</span><span>擁擠因子 ${crowd}</span>${extras.length ? `<span class="sep">/</span><span>${extras.join(" ")}</span>` : ""}`;
 }
