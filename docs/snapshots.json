@@ -128,127 +128,127 @@
     },
     {
       "date": "2026-09-03",
-      "taiex_change_pct": 1.78,
+      "taiex_change_pct": -0.67,
       "candidates": [
         {
-          "code": "9921",
-          "name": "巨大",
-          "close": 102.5,
-          "score": 46.9
+          "code": "3543",
+          "name": "州巧",
+          "close": 48.65,
+          "score": 52.0
         },
         {
-          "code": "6442",
-          "name": "光聖",
-          "close": 1635.0,
-          "score": 45.3
+          "code": "8039",
+          "name": "台虹",
+          "close": 313.5,
+          "score": 50.9
         },
         {
-          "code": "8996",
-          "name": "高力",
-          "close": 1175.0,
-          "score": 43.6
+          "code": "1303",
+          "name": "南亞",
+          "close": 237.5,
+          "score": 47.4
         },
         {
-          "code": "3673",
-          "name": "TPK-KY",
-          "close": 67.8,
-          "score": 43.0
-        },
-        {
-          "code": "2340",
-          "name": "台亞",
-          "close": 34.1,
-          "score": 41.6
-        },
-        {
-          "code": "3135",
-          "name": "凌航",
-          "close": 173.0,
-          "score": 41.2
-        },
-        {
-          "code": "4967",
-          "name": "十銓",
-          "close": 276.0,
-          "score": 41.0
-        },
-        {
-          "code": "1802",
-          "name": "台玻",
-          "close": 61.3,
-          "score": 40.8
-        },
-        {
-          "code": "3714",
-          "name": "富采",
-          "close": 62.5,
-          "score": 40.8
+          "code": "4927",
+          "name": "泰鼎-KY",
+          "close": 42.3,
+          "score": 45.5
         },
         {
           "code": "3605",
           "name": "宏致",
-          "close": 125.5,
-          "score": 40.1
-        },
-        {
-          "code": "6672",
-          "name": "騰輝電子-KY",
-          "close": 278.5,
-          "score": 39.9
-        },
-        {
-          "code": "2465",
-          "name": "麗臺",
-          "close": 95.8,
-          "score": 39.2
-        },
-        {
-          "code": "1605",
-          "name": "華新",
-          "close": 38.75,
-          "score": 37.9
-        },
-        {
-          "code": "1808",
-          "name": "潤隆",
-          "close": 34.85,
-          "score": 37.9
-        },
-        {
-          "code": "6456",
-          "name": "GIS-KY",
-          "close": 70.4,
-          "score": 37.8
-        },
-        {
-          "code": "2399",
-          "name": "映泰",
-          "close": 46.15,
-          "score": 37.8
-        },
-        {
-          "code": "2464",
-          "name": "盟立",
-          "close": 184.5,
-          "score": 37.6
-        },
-        {
-          "code": "8046",
-          "name": "南電",
-          "close": 1225.0,
-          "score": 37.4
+          "close": 127.0,
+          "score": 45.3
         },
         {
           "code": "4956",
           "name": "光鋐",
           "close": 36.2,
-          "score": 37.2
+          "score": 45.2
         },
         {
-          "code": "6451",
-          "name": "訊芯-KY",
-          "close": 455.0,
-          "score": 36.7
+          "code": "6278",
+          "name": "台表科",
+          "close": 199.5,
+          "score": 44.3
+        },
+        {
+          "code": "3044",
+          "name": "健鼎",
+          "close": 502.0,
+          "score": 43.7
+        },
+        {
+          "code": "6213",
+          "name": "聯茂",
+          "close": 536.0,
+          "score": 43.4
+        },
+        {
+          "code": "2354",
+          "name": "鴻準",
+          "close": 66.3,
+          "score": 40.8
+        },
+        {
+          "code": "1717",
+          "name": "長興",
+          "close": 80.8,
+          "score": 40.5
+        },
+        {
+          "code": "6456",
+          "name": "GIS-KY",
+          "close": 70.1,
+          "score": 39.7
+        },
+        {
+          "code": "4949",
+          "name": "有成精密",
+          "close": 82.3,
+          "score": 39.3
+        },
+        {
+          "code": "3376",
+          "name": "新日興",
+          "close": 208.0,
+          "score": 39.2
+        },
+        {
+          "code": "1709",
+          "name": "和益",
+          "close": 35.0,
+          "score": 39.0
+        },
+        {
+          "code": "1727",
+          "name": "中華化",
+          "close": 94.2,
+          "score": 38.4
+        },
+        {
+          "code": "2408",
+          "name": "南亞科",
+          "close": 518.0,
+          "score": 38.3
+        },
+        {
+          "code": "3006",
+          "name": "晶豪科",
+          "close": 281.5,
+          "score": 38.1
+        },
+        {
+          "code": "2368",
+          "name": "金像電",
+          "close": 1175.0,
+          "score": 37.9
+        },
+        {
+          "code": "4977",
+          "name": "眾達-KY",
+          "close": 176.5,
+          "score": 37.9
         }
       ]
     }
