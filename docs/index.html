@@ -473,7 +473,7 @@
   </div>
 
   <h2 class="board-title">觀察清單</h2>
-  <p class="board-sub">依觀察分排序,用來縮小範圍,不是依名次進場。個股與 ETF 分開標示。</p>
+  <p class="board-sub">個股與 ETF 分開取榜。全部=個股前 15 + ETF 前 5;切換按鈕可看個股前 20 或 ETF 前 10。</p>
   <div class="filters" id="kindFilters">
     <button type="button" data-kind="all" class="active">全部</button>
     <button type="button" data-kind="stock">個股</button>
@@ -632,8 +632,19 @@ function factorLine(detail) {
   if (detail && detail.vol_ratio_20d != null) extras.push(`量比 <b>${detail.vol_ratio_20d}</b>`);
   if (detail && detail.atr_extension != null) extras.push(`ATR延伸 <b>${detail.atr_extension}</b>`);
   if (detail && detail.trust_streak >= 3) extras.push(`投信連買 <b>${detail.trust_streak}日</b>`);
-  else if (detail && detail.trust_net != null) extras.push(`投信 <b>${detail.trust_net > 0 ? "+" : ""}${detail.trust_net}</b>`);
+  if (detail && detail.trust_net != null) {
+    const lots = fmtLots(detail.trust_net);
+    if (lots != null) extras.push(`投信 <b>${lots} 張</b>`);
+  }
   return `<span>結構因子 ${struct}</span><span class="sep">/</span><span>擁擠因子 ${crowd}</span>${extras.length ? `<span class="sep">/</span><span>${extras.join(" ")}</span>` : ""}`;
+}
+
+function fmtLots(shares) {
+  if (shares === null || shares === undefined || Number.isNaN(Number(shares))) return null;
+  const lots = Number(shares) / 1000;
+  const digits = Math.abs(lots) >= 10 ? 0 : 1;
+  const n = Number(lots.toFixed(digits));
+  return n > 0 ? `+${n}` : String(n);
 }
 
 function closeText(close) {
@@ -772,10 +783,18 @@ async function init() {
   renderTradeTable(data.lazy_pack);
   renderWeights(data.methodology);
   const allRows = data.candidates || [];
+  const stockRows = data.candidates_stock || allRows.filter((c) => (c.kind || "stock") === "stock");
+  const etfRows = data.candidates_etf || allRows.filter((c) => c.kind === "etf");
   let kindFilter = "all";
   const applyFilter = () => {
-    const rows = kindFilter === "all" ? allRows : allRows.filter((c) => (c.kind || "stock") === kindFilter);
+    const rows = kindFilter === "stock" ? stockRows : kindFilter === "etf" ? etfRows : allRows;
     renderRows(rows);
+    const emptyEl = document.getElementById("emptyState");
+    if (!rows.length && kindFilter === "etf") {
+      emptyEl.textContent = "今天沒有擠進 ETF 觀察榜的標的。";
+    } else {
+      emptyEl.textContent = "今天沒有符合條件的標的,明天再來看看。";
+    }
   };
   document.querySelectorAll("#kindFilters button").forEach((btn) => {
     btn.addEventListener("click", () => {

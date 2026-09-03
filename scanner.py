@@ -76,8 +76,10 @@ MAX_PRICE = 2000.0                       # 排除極端高價股(流動性/報�
 CANDIDATE_POOL_SIZE = 300                # 進入歷史資料階段的候選檔數上限
 HISTORY_DAYS = "1y"                      # Wilder RSI/ATR 需要足夠暖身才接近券商數值
 TOP_N_DEFAULT = 20
+TOP_N_ETF_DEFAULT = 10
 SNAPSHOTS_KEEP_DAYS = 30
 EXIT_LOOKBACK_DAYS = 10
+MISSING_RELATIVE_PENALTY = 3.0           # 缺相對大盤資料略扣,不可優於確定小輸大盤
 
 # 結構分:趨勢剛對齊、RSI 健康、價格尚未過度延伸
 STRUCTURE_WEIGHTS = {
@@ -781,7 +783,9 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
         score = structure - CROWDING_PENALTY * crowding - extra_penalty(r.change_pct) + chip_score_adj(r)
         if r.vol_raw is not None and not pd.isna(r.vol_raw) and r.vol_raw < DEAD_TAPE_VOL:
             score -= DEAD_TAPE_PENALTY
-        if r.relative_raw is not None and not pd.isna(r.relative_raw) and r.relative_raw < 0:
+        if r.relative_raw is None or pd.isna(r.relative_raw):
+            score -= MISSING_RELATIVE_PENALTY
+        elif r.relative_raw < 0:
             score -= 6.0
         out.append(
             Candidate(
@@ -838,28 +842,28 @@ def classify_action(c: Candidate, regime: str) -> tuple[str, str]:
     risks = set(c.risk_tags or [])
 
     if "接近漲停" in risks:
-        return "exit", "接近漲停,短線空間被用完的機率高"
+        return "exit", "接近漲停,短線空間已用完,建議出清"
     if "接近跌停" in risks:
-        return "exit", "接近跌停,短線先出場觀望"
+        return "exit", "接近跌停,建議出清"
     if "放量長陰" in risks:
-        return "exit", "放量長陰,偏高潮後回吐"
+        return "exit", "放量長陰,高潮後回吐,建議出清"
     if rsi is not None and rsi > 80:
-        return "exit", f"RSI {rsi} 過熱"
+        return "exit", f"RSI {rsi} 過熱,建議出清"
     if atr is not None and atr >= EXT_ATR_THRESHOLD:
-        return "exit", f"價格已延伸 {atr:.1f} 倍 ATR"
+        return "exit", f"價格已延伸 {atr:.1f} 倍 ATR,建議出清"
     if above is False and c.crowding >= 55:
-        return "exit", "跌破均線且擁擠仍高,結構轉弱"
+        return "exit", "收盤跌破均線且擁擠仍高,結構轉弱,建議出清"
 
     if "今日大漲" in risks:
-        return "trim", "今日大漲,若已持有考慮先減碼"
+        return "trim", "今日大漲,建議先減碼鎖定部分獲利"
     if "今日大跌" in risks:
-        return "trim", "今日大跌,若已持有先減碼控風險"
+        return "trim", "今日大跌,建議先減碼控風險"
     if "延伸過遠" in risks:
         return "trim", "靠近高點或延伸過遠,建議部分停利"
     if "短線過熱" in risks or (rsi is not None and rsi > 70):
-        return "trim", f"RSI {rsi} 偏熱,適合減碼而非加碼"
+        return "trim", f"RSI {rsi} 偏熱,建議減碼而非加碼"
     if c.crowding >= 70:
-        return "trim", "擁擠分偏高,追價風險大"
+        return "trim", "擁擠分偏高,動能高檔鈍化,建議先減碼獲利"
 
     dead_volume = vol is not None and vol < DEAD_TAPE_VOL
     lagging = excess is not None and excess < SCALE_EXCESS_5D
@@ -1025,12 +1029,7 @@ def build_trade_plan(c: Candidate) -> dict | None:
 
 
 def market_regime(taiex_hist: pd.DataFrame | None, official_close: float | None, as_of: str) -> dict:
-    if taiex_hist is not None and official_close:
-        taiex_hist = overlay_last_bar(
-            taiex_hist,
-            as_of,
-            {"open": official_close, "high": official_close, "low": official_close, "close": official_close},
-        )
+    """呼叫端須先把當日大盤收盤 overlay 進 taiex_hist,這裡不再複製一份。"""
     close = None if taiex_hist is None else taiex_hist["Close"].dropna()
     if close is None or len(close) < 20:
         return {
@@ -1070,20 +1069,74 @@ def _action_sort_key(c: Candidate) -> tuple:
 
 
 def collect_prior_recs(history_days: list[dict], today_date: str) -> dict[str, dict]:
-    usable = [d for d in history_days if d.get("date") and d["date"] != today_date][-EXIT_LOOKBACK_DAYS:]
+    usable = sorted(
+        [d for d in history_days if d.get("date") and d["date"] != today_date],
+        key=lambda d: str(d["date"]),
+    )[-EXIT_LOOKBACK_DAYS:]
     recs: dict[str, dict] = {}
+    closed: set[str] = set()
     for day in usable:
+        for raw in day.get("closed") or []:
+            code = str(raw).strip().upper()
+            if code:
+                closed.add(code)
         for item in day.get("candidates") or []:
             code = str(item.get("code", "")).strip().upper()
             if not code:
                 continue
             action = item.get("action")
-            tracked = action in ("strong_buy", "scale_in") or action is None
-            if not tracked:
+            if action == "exit":
+                closed.add(code)
                 continue
-            if code not in recs:
+            tracked = action in ("strong_buy", "scale_in") or action is None
+            if tracked and code not in recs and code not in closed:
                 recs[code] = {**item, "rec_date": day["date"]}
-    return recs
+    return {k: v for k, v in recs.items() if k not in closed}
+
+
+def _round2(value, default: float = 0.0) -> float:
+    try:
+        if value is None or pd.isna(value):
+            return default
+        return round(float(value), 2)
+    except (TypeError, ValueError):
+        return default
+
+
+def holder_reason(action: str, live: Candidate | None, fallback: str) -> str:
+    """出場欄給已持有者看,不要沿用場外『追價風險』用語。"""
+    text = (fallback or "").replace("追價風險大", "動能高檔鈍化,建議先減碼獲利")
+    if not live:
+        return text
+    risks = set(live.risk_tags or [])
+    d = live.detail or {}
+    rsi = d.get("rsi14")
+    atr = d.get("atr_extension")
+    if action == "exit":
+        if "接近漲停" in risks:
+            return "接近漲停,短線空間已用完,建議出清"
+        if "接近跌停" in risks:
+            return "接近跌停,建議出清"
+        if "放量長陰" in risks:
+            return "放量長陰,高潮後回吐,建議出清"
+        if rsi is not None and rsi > 80:
+            return f"RSI {rsi} 過熱,建議出清"
+        if atr is not None and atr >= EXT_ATR_THRESHOLD:
+            return f"價格已延伸 {atr:.1f} 倍 ATR,建議出清"
+        if d.get("above_ma20") is False:
+            return "收盤跌破20日均線,結構轉弱,建議出清"
+        return text.replace("建議先減碼獲利", "建議出清")
+    if "今日大漲" in risks:
+        return "今日大漲,建議先減碼鎖定部分獲利"
+    if "今日大跌" in risks:
+        return "今日大跌,建議先減碼控風險"
+    if "延伸過遠" in risks:
+        return "靠近高點或延伸過遠,建議部分停利"
+    if "短線過熱" in risks or (rsi is not None and rsi > 70):
+        return f"RSI {rsi} 偏熱,建議減碼而非加碼"
+    if live.crowding >= 70:
+        return "擁擠分偏高,動能高檔鈍化,建議先減碼獲利"
+    return text
 
 
 def build_exit_from_history(
@@ -1114,8 +1167,8 @@ def build_exit_from_history(
             item = Candidate(
                 code=code,
                 name=str(rec.get("name") or today_name.get(code, code)),
-                close=float(px) if px is not None else float(rec.get("close") or 0),
-                change_pct=float(today_chg.get(code) or 0.0),
+                close=_round2(px if px is not None else rec.get("close")),
+                change_pct=_round2(today_chg.get(code)),
                 kind=str(rec.get("kind") or ("etf" if security_kind(code) == "etf" else "stock")),
                 action="exit",
                 action_label=ACTION_LABELS["exit"],
@@ -1130,11 +1183,12 @@ def build_exit_from_history(
         live = by_code.get(code)
 
         if live and live.action in ("trim", "exit"):
+            why = holder_reason(live.action, live, live.reason)
             item = Candidate(
                 code=live.code,
                 name=live.name,
                 close=live.close,
-                change_pct=live.change_pct,
+                change_pct=_round2(live.change_pct),
                 kind=live.kind,
                 structure=live.structure,
                 crowding=live.crowding,
@@ -1144,18 +1198,23 @@ def build_exit_from_history(
                 detail=live.detail,
                 action=live.action,
                 action_label=live.action_label,
-                reason=prefix + live.reason,
+                reason=prefix + why,
                 plan=live.plan,
             )
             (exits if live.action == "exit" else trims).append(item)
             continue
 
-        stop, tp1, tp2, ma20 = rec.get("stop"), rec.get("tp1"), rec.get("tp2"), rec.get("ma20")
+        stop, tp1, tp2 = rec.get("stop"), rec.get("tp1"), rec.get("tp2")
+        live_ma20 = (live.detail or {}).get("ma20") if live else None
+        ma20 = live_ma20 if live_ma20 not in (None, "") else rec.get("ma20")
+        above = (live.detail or {}).get("above_ma20") if live else None
         reason = None
         action = None
         if stop and px <= float(stop):
             action, reason = "exit", f"跌破停損 {stop}"
-        elif ma20 and px < float(ma20):
+        elif live is not None and above is False:
+            action, reason = "exit", f"收盤跌破20日均線 {ma20}"
+        elif live is None and ma20 and px < float(ma20):
             action, reason = "exit", f"收盤跌破20日均線 {ma20}"
         elif tp2 and px >= float(tp2):
             action, reason = "exit", f"已達停利2 {tp2}"
@@ -1166,8 +1225,8 @@ def build_exit_from_history(
         item = Candidate(
             code=code,
             name=str(rec.get("name") or today_name.get(code, code)),
-            close=float(px),
-            change_pct=float(today_chg.get(code) or 0.0),
+            close=_round2(px),
+            change_pct=_round2(today_chg.get(code)),
             kind=str(rec.get("kind") or ("etf" if security_kind(code) == "etf" else "stock")),
             structure=float(live.structure) if live else 0.0,
             crowding=float(live.crowding) if live else 0.0,
@@ -1246,12 +1305,15 @@ def load_snapshots(path: Path) -> list[dict]:
     except (OSError, json.JSONDecodeError):
         return []
     days = data.get("days", [])
-    return days if isinstance(days, list) else []
+    if not isinstance(days, list):
+        return []
+    return sorted([d for d in days if isinstance(d, dict)], key=lambda d: str(d.get("date") or ""))
 
 
 def save_snapshots(path: Path, days: list[dict]) -> None:
+    ordered = sorted(days, key=lambda d: str(d.get("date") or ""))
     path.write_text(
-        json.dumps({"days": days[-SNAPSHOTS_KEEP_DAYS:]}, ensure_ascii=False, indent=2),
+        json.dumps({"days": ordered[-SNAPSHOTS_KEEP_DAYS:]}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
@@ -1275,7 +1337,10 @@ def build_review(
     today_date: str,
     taiex_change_pct: float | None,
 ) -> dict | None:
-    usable = [d for d in history_days if d.get("date") and d["date"] != today_date]
+    usable = sorted(
+        [d for d in history_days if d.get("date") and d["date"] != today_date],
+        key=lambda d: str(d["date"]),
+    )
     if not usable:
         return None
 
@@ -1342,6 +1407,15 @@ def snapshot_entry(c: Candidate) -> dict:
     }
 
 
+def split_ranked(candidates: list[Candidate], top_n: int, top_n_etf: int) -> tuple[list[Candidate], list[Candidate], list[Candidate]]:
+    stocks = sorted([c for c in candidates if c.kind == "stock"], key=lambda c: c.score, reverse=True)[:top_n]
+    etfs = sorted([c for c in candidates if c.kind == "etf"], key=lambda c: c.score, reverse=True)[:top_n_etf]
+    mixed = sorted(stocks[:15] + etfs[:5], key=lambda c: c.score, reverse=True)
+    if not mixed:
+        mixed = sorted(candidates, key=lambda c: c.score, reverse=True)[:top_n]
+    return mixed, stocks, etfs
+
+
 def build_output(
     candidates: list[Candidate],
     top_n: int,
@@ -1350,8 +1424,9 @@ def build_output(
     as_of: str,
     market: dict | None,
     lazy_pack: dict | None = None,
+    top_n_etf: int = TOP_N_ETF_DEFAULT,
 ) -> dict:
-    ranked = sorted(candidates, key=lambda c: c.score, reverse=True)[:top_n]
+    mixed, stocks, etfs = split_ranked(candidates, top_n, top_n_etf)
     return {
         "updated_at": taipei_now().isoformat(),
         "as_of": as_of,
@@ -1362,8 +1437,8 @@ def build_output(
         "methodology": {
             "horizon": "短線 1~2 週波段參考,非當沖、非長期持有",
             "rsi": "RSI(14, Wilder)",
-            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 漲跌停/大漲大跌降權 + 法人加減分",
-            "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;缺資料不當成強勢。大盤在20MA下不發強力推薦。出場只追蹤日前推薦。",
+            "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 漲跌停/大漲大跌降權 + 法人加減分。個股與 ETF 分開取榜。",
+            "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;缺資料不當成強勢。大盤在20MA下不發強力推薦。出場只追蹤日前推薦,出清後隔天不再重複警告。",
             "trade_plan": "進場等回檔至MA5;停損1.5×ATR且不少於 max(1×ATR, 2.5%);停利1.5R/2.5R。ETF 用 ETF 檔位。",
             "weights": {
                 "structure": STRUCTURE_WEIGHTS,
@@ -1374,7 +1449,9 @@ def build_output(
         },
         "review": review,
         "lazy_pack": lazy_pack or build_lazy_pack(candidates),
-        "candidates": [candidate_payload(c) for c in ranked],
+        "candidates": [candidate_payload(c) for c in mixed],
+        "candidates_stock": [candidate_payload(c) for c in stocks],
+        "candidates_etf": [candidate_payload(c) for c in etfs],
     }
 
 
@@ -1504,9 +1581,9 @@ def build_demo_output(top_n: int) -> dict:
     return output
 
 
-def tracked_candidates(candidates: list[Candidate], top_n: int) -> list[Candidate]:
-    ranked = sorted(candidates, key=lambda c: c.score, reverse=True)[:top_n]
-    by_code = {c.code: c for c in ranked}
+def tracked_candidates(candidates: list[Candidate], top_n: int, top_n_etf: int = TOP_N_ETF_DEFAULT) -> list[Candidate]:
+    _, stocks, etfs = split_ranked(candidates, top_n, top_n_etf)
+    by_code = {c.code: c for c in stocks + etfs}
     for c in candidates:
         if c.action in ("strong_buy", "scale_in"):
             by_code[c.code] = c
@@ -1543,13 +1620,20 @@ def main():
         print("[3/4] 抓取歷史K線並計算指標(需要幾分鐘,請耐心等候)...")
         hist_map = fetch_history(pool["code"].tolist())
         taiex_hist = hist_map.get(TAIEX_TICKER)
+        taiex_bar = None
+        if official_taiex_close is not None:
+            taiex_bar = {
+                "open": official_taiex_close,
+                "high": official_taiex_close,
+                "low": official_taiex_close,
+                "close": official_taiex_close,
+            }
+        if taiex_hist is not None:
+            taiex_hist = overlay_last_bar(taiex_hist, as_of, taiex_bar)
         market = market_regime(taiex_hist, official_taiex_close, as_of)
         taiex_change_pct = official_taiex_chg
         if taiex_change_pct is None and taiex_hist is not None and len(taiex_hist["Close"].dropna()) >= 2:
-            c = overlay_last_bar(
-                taiex_hist, as_of,
-                {"close": official_taiex_close} if official_taiex_close else None,
-            )["Close"].dropna()
+            c = taiex_hist["Close"].dropna()
             taiex_change_pct = round(float((c.iloc[-1] / c.iloc[-2] - 1) * 100), 2)
         if isinstance(taiex_change_pct, (int, float)):
             taiex_change_pct = round(float(taiex_change_pct), 2)
@@ -1603,6 +1687,7 @@ def main():
             "taiex_change_pct": taiex_change_pct,
             "market_regime": market.get("regime"),
             "candidates": [snapshot_entry(c) for c in tracked_candidates(candidates, args.top)],
+            "closed": [c.code for c in exit_items],
         }
         history = [d for d in history if d.get("date") != as_of]
         history.append(today_entry)
