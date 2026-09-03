@@ -116,6 +116,7 @@ MIN_STOP_ATR = 1.0                   # 結構停損也至少要有 1×ATR,避免
 MIN_STOP_PCT = 2.5                   # 或至少 2.5%,不夠繳手續費+交易稅就不做
 TP1_R = 1.5                          # 第一停利 = 1.5 倍風險
 TP2_R = 2.5                          # 第二停利 = 2.5 倍風險
+MIN_RR_HEADROOM = 1.0                # 錨定20日高點後風報比低於此不發進場計畫
 ENTRY_ATR_PULLBACK = 0.5             # 進場下緣最多往下等 0.5×ATR
 HORIZON = "5–10 個交易日"
 TRUST_SCORE_BONUS = 3.0              # 當日投信買超加分
@@ -461,6 +462,13 @@ def fetch_t86_map(as_of: str, need_days: int = 3) -> dict[str, dict]:
         return out
 
     print(f"      法人資料交易日: {', '.join(d for d, _ in days)}")
+    if days[0][0] != as_of:
+        print(
+            f"[提示] 當日({as_of}) T86 尚未公佈,最新法人資料為 {days[0][0]},今日不計法人加減分。",
+            file=sys.stderr,
+        )
+        return {}
+
     streak_maps: list[dict[str, dict]] = []
     for _, rows in days:
         m = {}
@@ -924,7 +932,17 @@ def assign_actions(candidates: list[Candidate], regime: str = "risk_on") -> None
         c.action_label = ACTION_LABELS[key]
         c.reason = reason
         if key in ("strong_buy", "scale_in"):
-            c.plan = build_trade_plan(c)
+            plan = build_trade_plan(c)
+            if plan and plan.get("rejected"):
+                c.action = "watch"
+                c.action_label = ACTION_LABELS["watch"]
+                c.reason = plan.get("reject_reason") or "上檔空間不足,先觀望"
+                c.plan = None
+                _tag_overhead(c)
+            else:
+                c.plan = plan
+                if plan and plan.get("tp1_capped"):
+                    _tag_overhead(c)
         else:
             c.plan = None
 
@@ -943,6 +961,13 @@ def twse_tick(price: float, is_etf: bool = False) -> float:
     if price < 1000:
         return 1.0
     return 5.0
+
+
+def _tag_overhead(c: Candidate) -> None:
+    tags = list(c.risk_tags or [])
+    if "上檔有壓" not in tags:
+        tags.append("上檔有壓")
+    c.risk_tags = tags
 
 
 def round_tick(price: float, mode: str = "nearest", is_etf: bool = False) -> float:
@@ -1006,6 +1031,24 @@ def build_trade_plan(c: Candidate) -> dict | None:
     risk = entry_mid - stop
     tp1 = round_tick(entry_mid + TP1_R * risk, "up", is_etf=is_etf)
     tp2 = round_tick(entry_mid + TP2_R * risk, "up", is_etf=is_etf)
+    resistance = None if not high20 else round_tick(float(high20), "nearest", is_etf=is_etf)
+    rr1 = float(TP1_R)
+    capped = False
+    if resistance is not None and resistance > entry_mid and resistance < tp1:
+        cap = round_tick(float(resistance), "down", is_etf=is_etf)
+        reward = cap - entry_mid
+        if cap <= entry_mid or reward / risk < MIN_RR_HEADROOM:
+            return {
+                "rejected": True,
+                "reject_reason": f"上檔20日高點 {resistance} 相對停損不滿1R,空間不足先觀望",
+                "resistance_20d": resistance,
+            }
+        tp1 = cap
+        rr1 = round(reward / risk, 2)
+        capped = True
+    headroom_pct = None
+    if resistance is not None and entry_mid > 0:
+        headroom_pct = round((resistance - entry_mid) / entry_mid * 100, 2)
     return {
         "horizon": HORIZON,
         "entry_low": entry_low,
@@ -1013,18 +1056,21 @@ def build_trade_plan(c: Candidate) -> dict | None:
         "stop": stop,
         "tp1": tp1,
         "tp2": tp2,
-        "resistance_20d": None if not high20 else round_tick(float(high20), "nearest", is_etf=is_etf),
+        "resistance_20d": resistance,
         "invalid_below": None if not ma20 else round_tick(float(ma20), "down", is_etf=is_etf),
         "atr": round(float(atr), 4),
         "risk_pct": round(risk / entry_mid * 100, 2),
         "tp1_pct": round((tp1 - entry_mid) / entry_mid * 100, 2),
         "tp2_pct": round((tp2 - entry_mid) / entry_mid * 100, 2),
-        "rr1": TP1_R,
+        "rr1": rr1,
         "rr2": TP2_R,
+        "tp1_capped": capped,
+        "headroom_pct": headroom_pct,
         "method": (
             "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,"
             "若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;"
-            "停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+            "停利先算1.5R/2.5R,若1.5R穿過20日高點則改錨在壓力附近;"
+            "錨定後不滿1R不發進場計畫。ETF 與普通股使用不同跳動單位。"
         ),
     }
 
@@ -1275,7 +1321,7 @@ def build_lazy_pack(
     pack["trade_table"] = entry_rows
     pack["trade_method"] = (
         "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,"
-        "且不少於 max(1×ATR, 2.5%);停利=1.5R/2.5R。"
+        "且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,若穿過20日高點則改錨在壓力附近,不滿1R不發計畫。"
         "參考持有5–10個交易日,收盤跌破20日均線視為結構失效。"
         "出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。"
     )
@@ -1333,6 +1379,7 @@ def build_review(
     today_df: pd.DataFrame,
     today_date: str,
     taiex_change_pct: float | None,
+    taiex_close: float | None = None,
 ) -> dict | None:
     usable = sorted(
         [d for d in history_days if d.get("date") and d["date"] != today_date],
@@ -1353,6 +1400,8 @@ def build_review(
         if avg_1d is None or taiex_change_pct is None
         else round(avg_1d - taiex_change_pct, 2),
         "avg_return_5d": None,
+        "taiex_return_5d": None,
+        "excess_5d": None,
         "n_5d": 0,
         "from_date_5d": None,
         "note": "清單報酬與大盤日報酬都用證交所收盤價對帳;as_of 是快照交易日而非執行當日。",
@@ -1364,6 +1413,15 @@ def build_review(
         review["from_date_5d"] = d5["date"]
         review["avg_return_5d"] = avg_5d
         review["n_5d"] = n_5d
+        d5_taiex = d5.get("taiex_close")
+        if taiex_close and d5_taiex:
+            try:
+                taiex_5d = round((float(taiex_close) / float(d5_taiex) - 1) * 100, 2)
+            except (TypeError, ValueError, ZeroDivisionError):
+                taiex_5d = None
+            review["taiex_return_5d"] = taiex_5d
+            if avg_5d is not None and taiex_5d is not None:
+                review["excess_5d"] = round(avg_5d - taiex_5d, 2)
 
     return review
 
@@ -1438,7 +1496,7 @@ def build_output(
             "rsi": "RSI(14, Wilder)",
             "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 漲跌停/大漲大跌降權 + 法人加減分。個股與 ETF 分開取榜。混合榜固定 20 檔,ETF 最多 5 檔、不足由個股補滿。",
             "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;缺資料不當成強勢。大盤在20MA下不發強力推薦。出場只追蹤日前推薦,出清後隔天不再重複警告。",
-            "trade_plan": "進場等回檔至MA5;停損1.5×ATR且不少於 max(1×ATR, 2.5%);停利1.5R/2.5R。ETF 用 ETF 檔位。",
+            "trade_plan": "進場等回檔至MA5;停損1.5×ATR且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,穿過20日高點則改錨在壓力附近,不滿1R不發計畫。ETF 用 ETF 檔位。",
             "weights": {
                 "structure": STRUCTURE_WEIGHTS,
                 "crowding": CROWDING_WEIGHTS,
@@ -1567,6 +1625,8 @@ def build_demo_output(top_n: int) -> dict:
             "taiex_return_1d": round(float(rng.uniform(-1.5, 1.5)), 2),
             "excess_1d": round(float(rng.uniform(-0.8, 1.2)), 2),
             "avg_return_5d": None,
+            "taiex_return_5d": None,
+            "excess_5d": None,
             "n_5d": 0,
             "from_date_5d": None,
             "note": "demo 預覽用的假回顧數字。",
@@ -1672,7 +1732,7 @@ def main():
         assign_actions(candidates, market.get("regime") or "unknown")
         snap_path = snapshots_path_for(out_path)
         history = load_snapshots(snap_path)
-        review = build_review(history, snapshot, as_of, taiex_change_pct)
+        review = build_review(history, snapshot, as_of, taiex_change_pct, official_taiex_close)
         trim_items, exit_items = build_exit_from_history(
             candidates, history, as_of, snapshot, blocked,
         )
@@ -1685,6 +1745,7 @@ def main():
         today_entry = {
             "date": as_of,
             "taiex_change_pct": taiex_change_pct,
+            "taiex_close": official_taiex_close,
             "market_regime": market.get("regime"),
             "candidates": [snapshot_entry(c) for c in mixed],
             "tracked_pool": [snapshot_entry(c) for c in tracked_candidates(candidates, args.top)],

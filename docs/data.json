@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-04T07:19:10.218544+08:00",
+  "updated_at": "2026-09-04T07:38:20.833142+08:00",
   "as_of": "2026-09-03",
   "taiex_change_pct": -0.67,
   "market": {
@@ -17,7 +17,7 @@
     "rsi": "RSI(14, Wilder)",
     "ranking": "觀察分 = 結構百分位 − 擁擠百分位 × 0.5 − 漲跌停/大漲大跌降權 + 法人加減分。個股與 ETF 分開取榜。混合榜固定 20 檔,ETF 最多 5 檔、不足由個股補滿。",
     "actions": "強力推薦要結構對、量能跟上、近5日不輸大盤;缺資料不當成強勢。大盤在20MA下不發強力推薦。出場只追蹤日前推薦,出清後隔天不再重複警告。",
-    "trade_plan": "進場等回檔至MA5;停損1.5×ATR且不少於 max(1×ATR, 2.5%);停利1.5R/2.5R。ETF 用 ETF 檔位。",
+    "trade_plan": "進場等回檔至MA5;停損1.5×ATR且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,穿過20日高點則改錨在壓力附近,不滿1R不發計畫。ETF 用 ETF 檔位。",
     "weights": {
       "structure": {
         "trend": 0.4,
@@ -41,6 +41,8 @@
     "taiex_return_1d": -0.67,
     "excess_1d": -3.8,
     "avg_return_5d": null,
+    "taiex_return_5d": null,
+    "excess_5d": null,
     "n_5d": 0,
     "from_date_5d": null,
     "note": "清單報酬與大盤日報酬都用證交所收盤價對帳;as_of 是快照交易日而非執行當日。"
@@ -53,129 +55,8 @@
     },
     "scale_in": {
       "label": "分批進場",
-      "count": 9,
+      "count": 3,
       "items": [
-        {
-          "code": "00400A",
-          "name": "主動國泰動能高息",
-          "kind": "etf",
-          "close": 14.88,
-          "change_pct": -1.91,
-          "structure": 66.5,
-          "crowding": 54.8,
-          "score": 39.1,
-          "action": "scale_in",
-          "action_label": "分批進場",
-          "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-          "plan": {
-            "horizon": "5–10 個交易日",
-            "entry_low": 14.76,
-            "entry_high": 14.88,
-            "stop": 14.16,
-            "tp1": 15.81,
-            "tp2": 16.47,
-            "resistance_20d": 15.47,
-            "invalid_below": 14.63,
-            "atr": 0.3955,
-            "risk_pct": 4.45,
-            "tp1_pct": 6.68,
-            "tp2_pct": 11.13,
-            "rr1": 1.5,
-            "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-          },
-          "tags": [
-            "ETF",
-            "強於大盤"
-          ],
-          "risk_tags": [],
-          "detail": {
-            "kind": "etf",
-            "rsi14": 56.2,
-            "vol_ratio_20d": 1.04,
-            "above_ma20": true,
-            "atr_extension": 0.63,
-            "dist_from_high_20d_pct": 3.81,
-            "excess_5d_pct": 0.73,
-            "atr": 0.3955,
-            "ma5": 15.08,
-            "ma20": 14.63,
-            "swing_low_10": 13.97,
-            "swing_high_20": 15.47,
-            "trust_net": 0,
-            "foreign_net": -5138850,
-            "trust_streak": 0,
-            "factors": {
-              "trend": 66.0,
-              "rsi": 89.0,
-              "not_extended": 36.0,
-              "volume": 53.0,
-              "relative": 63.0,
-              "day_move": 39.0
-            }
-          }
-        },
-        {
-          "code": "006208",
-          "name": "富邦台50",
-          "kind": "etf",
-          "close": 243.8,
-          "change_pct": -0.57,
-          "structure": 56.6,
-          "crowding": 43.9,
-          "score": 37.7,
-          "action": "scale_in",
-          "action_label": "分批進場",
-          "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-          "plan": {
-            "horizon": "5–10 個交易日",
-            "entry_low": 242.4,
-            "entry_high": 243.8,
-            "stop": 235.55,
-            "tp1": 254.45,
-            "tp2": 262.0,
-            "resistance_20d": 248.85,
-            "invalid_below": 241.45,
-            "atr": 4.5605,
-            "risk_pct": 3.11,
-            "tp1_pct": 4.67,
-            "tp2_pct": 7.77,
-            "rr1": 1.5,
-            "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-          },
-          "tags": [
-            "ETF",
-            "強於大盤",
-            "投信買超"
-          ],
-          "risk_tags": [],
-          "detail": {
-            "kind": "etf",
-            "rsi14": 54.3,
-            "vol_ratio_20d": 0.9,
-            "above_ma20": true,
-            "atr_extension": 0.51,
-            "dist_from_high_20d_pct": 2.03,
-            "excess_5d_pct": 0.52,
-            "atr": 4.5605,
-            "ma5": 245.07,
-            "ma20": 241.47,
-            "swing_low_10": 234.6,
-            "swing_high_20": 248.85,
-            "trust_net": 16000,
-            "foreign_net": -396399,
-            "trust_streak": 2,
-            "factors": {
-              "trend": 50.0,
-              "rsi": 77.0,
-              "not_extended": 39.0,
-              "volume": 42.0,
-              "relative": 59.0,
-              "day_move": 14.0
-            }
-          }
-        },
         {
           "code": "2474",
           "name": "可成",
@@ -193,23 +74,27 @@
             "entry_low": 205.0,
             "entry_high": 206.5,
             "stop": 198.0,
-            "tp1": 217.5,
+            "tp1": 214.5,
             "tp2": 225.5,
             "resistance_20d": 214.5,
             "invalid_below": 204.5,
             "atr": 4.4205,
             "risk_pct": 3.77,
-            "tp1_pct": 5.71,
+            "tp1_pct": 4.25,
             "tp2_pct": 9.6,
-            "rr1": 1.5,
+            "rr1": 1.13,
             "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+            "tp1_capped": true,
+            "headroom_pct": 4.25,
+            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利先算1.5R/2.5R,若1.5R穿過20日高點則改錨在壓力附近;錨定後不滿1R不發進場計畫。ETF 與普通股使用不同跳動單位。"
           },
           "tags": [
             "個股",
             "投信買超"
           ],
-          "risk_tags": [],
+          "risk_tags": [
+            "上檔有壓"
+          ],
           "detail": {
             "kind": "stock",
             "rsi14": 56.7,
@@ -263,7 +148,9 @@
             "tp2_pct": 17.0,
             "rr1": 1.5,
             "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+            "tp1_capped": false,
+            "headroom_pct": 11.05,
+            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利先算1.5R/2.5R,若1.5R穿過20日高點則改錨在壓力附近;錨定後不滿1R不發進場計畫。ETF 與普通股使用不同跳動單位。"
           },
           "tags": [
             "個股",
@@ -297,127 +184,6 @@
           }
         },
         {
-          "code": "00922",
-          "name": "國泰台灣領袖50",
-          "kind": "etf",
-          "close": 41.43,
-          "change_pct": -0.84,
-          "structure": 63.0,
-          "crowding": 54.4,
-          "score": 35.8,
-          "action": "scale_in",
-          "action_label": "分批進場",
-          "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-          "plan": {
-            "horizon": "5–10 個交易日",
-            "entry_low": 41.18,
-            "entry_high": 41.43,
-            "stop": 39.93,
-            "tp1": 43.37,
-            "tp2": 44.75,
-            "resistance_20d": 42.62,
-            "invalid_below": 40.81,
-            "atr": 0.8298,
-            "risk_pct": 3.33,
-            "tp1_pct": 5.0,
-            "tp2_pct": 8.34,
-            "rr1": 1.5,
-            "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-          },
-          "tags": [
-            "ETF",
-            "強於大盤",
-            "外資買超"
-          ],
-          "risk_tags": [],
-          "detail": {
-            "kind": "etf",
-            "rsi14": 56.7,
-            "vol_ratio_20d": 1.27,
-            "above_ma20": true,
-            "atr_extension": 0.75,
-            "dist_from_high_20d_pct": 2.79,
-            "excess_5d_pct": 1.16,
-            "atr": 0.8298,
-            "ma5": 41.67,
-            "ma20": 40.81,
-            "swing_low_10": 39.51,
-            "swing_high_20": 42.62,
-            "trust_net": 0,
-            "foreign_net": 467096,
-            "trust_streak": 0,
-            "factors": {
-              "trend": 56.0,
-              "rsi": 92.0,
-              "not_extended": 33.0,
-              "volume": 67.0,
-              "relative": 65.0,
-              "day_move": 18.0
-            }
-          }
-        },
-        {
-          "code": "00940",
-          "name": "元大台灣價值高息",
-          "kind": "etf",
-          "close": 12.78,
-          "change_pct": -0.93,
-          "structure": 57.0,
-          "crowding": 50.9,
-          "score": 31.6,
-          "action": "scale_in",
-          "action_label": "分批進場",
-          "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-          "plan": {
-            "horizon": "5–10 個交易日",
-            "entry_low": 12.72,
-            "entry_high": 12.78,
-            "stop": 12.43,
-            "tp1": 13.23,
-            "tp2": 13.55,
-            "resistance_20d": 12.97,
-            "invalid_below": 12.56,
-            "atr": 0.1781,
-            "risk_pct": 2.51,
-            "tp1_pct": 3.76,
-            "tp2_pct": 6.27,
-            "rr1": 1.5,
-            "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-          },
-          "tags": [
-            "ETF",
-            "強於大盤"
-          ],
-          "risk_tags": [],
-          "detail": {
-            "kind": "etf",
-            "rsi14": 60.8,
-            "vol_ratio_20d": 0.88,
-            "above_ma20": true,
-            "atr_extension": 1.25,
-            "dist_from_high_20d_pct": 1.46,
-            "excess_5d_pct": 1.12,
-            "atr": 0.1781,
-            "ma5": 12.82,
-            "ma20": 12.56,
-            "swing_low_10": 12.36,
-            "swing_high_20": 12.97,
-            "trust_net": 0,
-            "foreign_net": -2014926,
-            "trust_streak": 0,
-            "factors": {
-              "trend": 55.0,
-              "rsi": 85.0,
-              "not_extended": 21.0,
-              "volume": 40.0,
-              "relative": 65.0,
-              "day_move": 19.0
-            }
-          }
-        },
-        {
           "code": "2303",
           "name": "聯電",
           "kind": "stock",
@@ -434,24 +200,28 @@
             "entry_low": 122.5,
             "entry_high": 125.0,
             "stop": 113.5,
-            "tp1": 139.5,
+            "tp1": 136.5,
             "tp2": 149.5,
             "resistance_20d": 136.5,
             "invalid_below": 122.5,
             "atr": 7.4324,
             "risk_pct": 8.28,
-            "tp1_pct": 12.73,
+            "tp1_pct": 10.3,
             "tp2_pct": 20.81,
-            "rr1": 1.5,
+            "rr1": 1.24,
             "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+            "tp1_capped": true,
+            "headroom_pct": 10.3,
+            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利先算1.5R/2.5R,若1.5R穿過20日高點則改錨在壓力附近;錨定後不滿1R不發進場計畫。ETF 與普通股使用不同跳動單位。"
           },
           "tags": [
             "個股",
             "強於大盤",
             "外資買超"
           ],
-          "risk_tags": [],
+          "risk_tags": [
+            "上檔有壓"
+          ],
           "detail": {
             "kind": "stock",
             "rsi14": 49.4,
@@ -477,74 +247,12 @@
               "day_move": 16.0
             }
           }
-        },
-        {
-          "code": "00878",
-          "name": "國泰永續高股息",
-          "kind": "etf",
-          "close": 33.58,
-          "change_pct": -0.21,
-          "structure": 56.5,
-          "crowding": 51.7,
-          "score": 30.7,
-          "action": "scale_in",
-          "action_label": "分批進場",
-          "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-          "plan": {
-            "horizon": "5–10 個交易日",
-            "entry_low": 33.43,
-            "entry_high": 33.58,
-            "stop": 32.66,
-            "tp1": 34.78,
-            "tp2": 35.62,
-            "resistance_20d": 34.19,
-            "invalid_below": 33.08,
-            "atr": 0.5072,
-            "risk_pct": 2.52,
-            "tp1_pct": 3.81,
-            "tp2_pct": 6.31,
-            "rr1": 1.5,
-            "rr2": 2.5,
-            "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-          },
-          "tags": [
-            "ETF",
-            "5/20MA黃金交叉",
-            "強於大盤",
-            "外資買超"
-          ],
-          "risk_tags": [],
-          "detail": {
-            "kind": "etf",
-            "rsi14": 58.9,
-            "vol_ratio_20d": 1.03,
-            "above_ma20": true,
-            "atr_extension": 0.99,
-            "dist_from_high_20d_pct": 1.78,
-            "excess_5d_pct": 2.92,
-            "atr": 0.5072,
-            "ma5": 33.43,
-            "ma20": 33.08,
-            "swing_low_10": 31.99,
-            "swing_high_20": 34.19,
-            "trust_net": 0,
-            "foreign_net": 185660,
-            "trust_streak": 0,
-            "factors": {
-              "trend": 41.0,
-              "rsi": 96.0,
-              "not_extended": 27.0,
-              "volume": 50.0,
-              "relative": 77.0,
-              "day_move": 6.0
-            }
-          }
         }
       ]
     },
     "watch": {
       "label": "觀望",
-      "count": 205,
+      "count": 211,
       "items": [
         {
           "code": "6213",
@@ -1074,133 +782,12 @@
     },
     "counts": {
       "strong_buy": 0,
-      "scale_in": 9,
-      "watch": 205,
+      "scale_in": 3,
+      "watch": 211,
       "trim": 1,
       "exit": 3
     },
     "trade_table": [
-      {
-        "code": "00400A",
-        "name": "主動國泰動能高息",
-        "kind": "etf",
-        "close": 14.88,
-        "change_pct": -1.91,
-        "structure": 66.5,
-        "crowding": 54.8,
-        "score": 39.1,
-        "action": "scale_in",
-        "action_label": "分批進場",
-        "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-        "plan": {
-          "horizon": "5–10 個交易日",
-          "entry_low": 14.76,
-          "entry_high": 14.88,
-          "stop": 14.16,
-          "tp1": 15.81,
-          "tp2": 16.47,
-          "resistance_20d": 15.47,
-          "invalid_below": 14.63,
-          "atr": 0.3955,
-          "risk_pct": 4.45,
-          "tp1_pct": 6.68,
-          "tp2_pct": 11.13,
-          "rr1": 1.5,
-          "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-        },
-        "tags": [
-          "ETF",
-          "強於大盤"
-        ],
-        "risk_tags": [],
-        "detail": {
-          "kind": "etf",
-          "rsi14": 56.2,
-          "vol_ratio_20d": 1.04,
-          "above_ma20": true,
-          "atr_extension": 0.63,
-          "dist_from_high_20d_pct": 3.81,
-          "excess_5d_pct": 0.73,
-          "atr": 0.3955,
-          "ma5": 15.08,
-          "ma20": 14.63,
-          "swing_low_10": 13.97,
-          "swing_high_20": 15.47,
-          "trust_net": 0,
-          "foreign_net": -5138850,
-          "trust_streak": 0,
-          "factors": {
-            "trend": 66.0,
-            "rsi": 89.0,
-            "not_extended": 36.0,
-            "volume": 53.0,
-            "relative": 63.0,
-            "day_move": 39.0
-          }
-        }
-      },
-      {
-        "code": "006208",
-        "name": "富邦台50",
-        "kind": "etf",
-        "close": 243.8,
-        "change_pct": -0.57,
-        "structure": 56.6,
-        "crowding": 43.9,
-        "score": 37.7,
-        "action": "scale_in",
-        "action_label": "分批進場",
-        "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-        "plan": {
-          "horizon": "5–10 個交易日",
-          "entry_low": 242.4,
-          "entry_high": 243.8,
-          "stop": 235.55,
-          "tp1": 254.45,
-          "tp2": 262.0,
-          "resistance_20d": 248.85,
-          "invalid_below": 241.45,
-          "atr": 4.5605,
-          "risk_pct": 3.11,
-          "tp1_pct": 4.67,
-          "tp2_pct": 7.77,
-          "rr1": 1.5,
-          "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-        },
-        "tags": [
-          "ETF",
-          "強於大盤",
-          "投信買超"
-        ],
-        "risk_tags": [],
-        "detail": {
-          "kind": "etf",
-          "rsi14": 54.3,
-          "vol_ratio_20d": 0.9,
-          "above_ma20": true,
-          "atr_extension": 0.51,
-          "dist_from_high_20d_pct": 2.03,
-          "excess_5d_pct": 0.52,
-          "atr": 4.5605,
-          "ma5": 245.07,
-          "ma20": 241.47,
-          "swing_low_10": 234.6,
-          "swing_high_20": 248.85,
-          "trust_net": 16000,
-          "foreign_net": -396399,
-          "trust_streak": 2,
-          "factors": {
-            "trend": 50.0,
-            "rsi": 77.0,
-            "not_extended": 39.0,
-            "volume": 42.0,
-            "relative": 59.0,
-            "day_move": 14.0
-          }
-        }
-      },
       {
         "code": "2474",
         "name": "可成",
@@ -1218,23 +805,27 @@
           "entry_low": 205.0,
           "entry_high": 206.5,
           "stop": 198.0,
-          "tp1": 217.5,
+          "tp1": 214.5,
           "tp2": 225.5,
           "resistance_20d": 214.5,
           "invalid_below": 204.5,
           "atr": 4.4205,
           "risk_pct": 3.77,
-          "tp1_pct": 5.71,
+          "tp1_pct": 4.25,
           "tp2_pct": 9.6,
-          "rr1": 1.5,
+          "rr1": 1.13,
           "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+          "tp1_capped": true,
+          "headroom_pct": 4.25,
+          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利先算1.5R/2.5R,若1.5R穿過20日高點則改錨在壓力附近;錨定後不滿1R不發進場計畫。ETF 與普通股使用不同跳動單位。"
         },
         "tags": [
           "個股",
           "投信買超"
         ],
-        "risk_tags": [],
+        "risk_tags": [
+          "上檔有壓"
+        ],
         "detail": {
           "kind": "stock",
           "rsi14": 56.7,
@@ -1288,7 +879,9 @@
           "tp2_pct": 17.0,
           "rr1": 1.5,
           "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+          "tp1_capped": false,
+          "headroom_pct": 11.05,
+          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利先算1.5R/2.5R,若1.5R穿過20日高點則改錨在壓力附近;錨定後不滿1R不發進場計畫。ETF 與普通股使用不同跳動單位。"
         },
         "tags": [
           "個股",
@@ -1322,127 +915,6 @@
         }
       },
       {
-        "code": "00922",
-        "name": "國泰台灣領袖50",
-        "kind": "etf",
-        "close": 41.43,
-        "change_pct": -0.84,
-        "structure": 63.0,
-        "crowding": 54.4,
-        "score": 35.8,
-        "action": "scale_in",
-        "action_label": "分批進場",
-        "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-        "plan": {
-          "horizon": "5–10 個交易日",
-          "entry_low": 41.18,
-          "entry_high": 41.43,
-          "stop": 39.93,
-          "tp1": 43.37,
-          "tp2": 44.75,
-          "resistance_20d": 42.62,
-          "invalid_below": 40.81,
-          "atr": 0.8298,
-          "risk_pct": 3.33,
-          "tp1_pct": 5.0,
-          "tp2_pct": 8.34,
-          "rr1": 1.5,
-          "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-        },
-        "tags": [
-          "ETF",
-          "強於大盤",
-          "外資買超"
-        ],
-        "risk_tags": [],
-        "detail": {
-          "kind": "etf",
-          "rsi14": 56.7,
-          "vol_ratio_20d": 1.27,
-          "above_ma20": true,
-          "atr_extension": 0.75,
-          "dist_from_high_20d_pct": 2.79,
-          "excess_5d_pct": 1.16,
-          "atr": 0.8298,
-          "ma5": 41.67,
-          "ma20": 40.81,
-          "swing_low_10": 39.51,
-          "swing_high_20": 42.62,
-          "trust_net": 0,
-          "foreign_net": 467096,
-          "trust_streak": 0,
-          "factors": {
-            "trend": 56.0,
-            "rsi": 92.0,
-            "not_extended": 33.0,
-            "volume": 67.0,
-            "relative": 65.0,
-            "day_move": 18.0
-          }
-        }
-      },
-      {
-        "code": "00940",
-        "name": "元大台灣價值高息",
-        "kind": "etf",
-        "close": 12.78,
-        "change_pct": -0.93,
-        "structure": 57.0,
-        "crowding": 50.9,
-        "score": 31.6,
-        "action": "scale_in",
-        "action_label": "分批進場",
-        "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-        "plan": {
-          "horizon": "5–10 個交易日",
-          "entry_low": 12.72,
-          "entry_high": 12.78,
-          "stop": 12.43,
-          "tp1": 13.23,
-          "tp2": 13.55,
-          "resistance_20d": 12.97,
-          "invalid_below": 12.56,
-          "atr": 0.1781,
-          "risk_pct": 2.51,
-          "tp1_pct": 3.76,
-          "tp2_pct": 6.27,
-          "rr1": 1.5,
-          "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-        },
-        "tags": [
-          "ETF",
-          "強於大盤"
-        ],
-        "risk_tags": [],
-        "detail": {
-          "kind": "etf",
-          "rsi14": 60.8,
-          "vol_ratio_20d": 0.88,
-          "above_ma20": true,
-          "atr_extension": 1.25,
-          "dist_from_high_20d_pct": 1.46,
-          "excess_5d_pct": 1.12,
-          "atr": 0.1781,
-          "ma5": 12.82,
-          "ma20": 12.56,
-          "swing_low_10": 12.36,
-          "swing_high_20": 12.97,
-          "trust_net": 0,
-          "foreign_net": -2014926,
-          "trust_streak": 0,
-          "factors": {
-            "trend": 55.0,
-            "rsi": 85.0,
-            "not_extended": 21.0,
-            "volume": 40.0,
-            "relative": 65.0,
-            "day_move": 19.0
-          }
-        }
-      },
-      {
         "code": "2303",
         "name": "聯電",
         "kind": "stock",
@@ -1459,24 +931,28 @@
           "entry_low": 122.5,
           "entry_high": 125.0,
           "stop": 113.5,
-          "tp1": 139.5,
+          "tp1": 136.5,
           "tp2": 149.5,
           "resistance_20d": 136.5,
           "invalid_below": 122.5,
           "atr": 7.4324,
           "risk_pct": 8.28,
-          "tp1_pct": 12.73,
+          "tp1_pct": 10.3,
           "tp2_pct": 20.81,
-          "rr1": 1.5,
+          "rr1": 1.24,
           "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
+          "tp1_capped": true,
+          "headroom_pct": 10.3,
+          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利先算1.5R/2.5R,若1.5R穿過20日高點則改錨在壓力附近;錨定後不滿1R不發進場計畫。ETF 與普通股使用不同跳動單位。"
         },
         "tags": [
           "個股",
           "強於大盤",
           "外資買超"
         ],
-        "risk_tags": [],
+        "risk_tags": [
+          "上檔有壓"
+        ],
         "detail": {
           "kind": "stock",
           "rsi14": 49.4,
@@ -1502,131 +978,9 @@
             "day_move": 16.0
           }
         }
-      },
-      {
-        "code": "00878",
-        "name": "國泰永續高股息",
-        "kind": "etf",
-        "close": 33.58,
-        "change_pct": -0.21,
-        "structure": 56.5,
-        "crowding": 51.7,
-        "score": 30.7,
-        "action": "scale_in",
-        "action_label": "分批進場",
-        "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-        "plan": {
-          "horizon": "5–10 個交易日",
-          "entry_low": 33.43,
-          "entry_high": 33.58,
-          "stop": 32.66,
-          "tp1": 34.78,
-          "tp2": 35.62,
-          "resistance_20d": 34.19,
-          "invalid_below": 33.08,
-          "atr": 0.5072,
-          "risk_pct": 2.52,
-          "tp1_pct": 3.81,
-          "tp2_pct": 6.31,
-          "rr1": 1.5,
-          "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-        },
-        "tags": [
-          "ETF",
-          "5/20MA黃金交叉",
-          "強於大盤",
-          "外資買超"
-        ],
-        "risk_tags": [],
-        "detail": {
-          "kind": "etf",
-          "rsi14": 58.9,
-          "vol_ratio_20d": 1.03,
-          "above_ma20": true,
-          "atr_extension": 0.99,
-          "dist_from_high_20d_pct": 1.78,
-          "excess_5d_pct": 2.92,
-          "atr": 0.5072,
-          "ma5": 33.43,
-          "ma20": 33.08,
-          "swing_low_10": 31.99,
-          "swing_high_20": 34.19,
-          "trust_net": 0,
-          "foreign_net": 185660,
-          "trust_streak": 0,
-          "factors": {
-            "trend": 41.0,
-            "rsi": 96.0,
-            "not_extended": 27.0,
-            "volume": 50.0,
-            "relative": 77.0,
-            "day_move": 6.0
-          }
-        }
-      },
-      {
-        "code": "0056",
-        "name": "元大高股息",
-        "kind": "etf",
-        "close": 54.5,
-        "change_pct": -1.09,
-        "structure": 55.7,
-        "crowding": 53.0,
-        "score": 29.2,
-        "action": "scale_in",
-        "action_label": "分批進場",
-        "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-        "plan": {
-          "horizon": "5–10 個交易日",
-          "entry_low": 54.15,
-          "entry_high": 54.5,
-          "stop": 52.6,
-          "tp1": 56.95,
-          "tp2": 58.65,
-          "resistance_20d": 55.8,
-          "invalid_below": 53.05,
-          "atr": 1.0073,
-          "risk_pct": 3.18,
-          "tp1_pct": 4.83,
-          "tp2_pct": 7.96,
-          "rr1": 1.5,
-          "rr2": 2.5,
-          "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-        },
-        "tags": [
-          "ETF",
-          "強於大盤"
-        ],
-        "risk_tags": [],
-        "detail": {
-          "kind": "etf",
-          "rsi14": 63.4,
-          "vol_ratio_20d": 0.87,
-          "above_ma20": true,
-          "atr_extension": 1.41,
-          "dist_from_high_20d_pct": 2.33,
-          "excess_5d_pct": 1.93,
-          "atr": 1.0073,
-          "ma5": 54.58,
-          "ma20": 53.08,
-          "swing_low_10": 51.7,
-          "swing_high_20": 55.8,
-          "trust_net": 0,
-          "foreign_net": -3556910,
-          "trust_streak": 0,
-          "factors": {
-            "trend": 63.0,
-            "rsi": 72.0,
-            "not_extended": 20.0,
-            "volume": 39.0,
-            "relative": 70.0,
-            "day_move": 22.0
-          }
-        }
       }
     ],
-    "trade_method": "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,且不少於 max(1×ATR, 2.5%);停利=1.5R/2.5R。參考持有5–10個交易日,收盤跌破20日均線視為結構失效。出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。",
+    "trade_method": "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,若穿過20日高點則改錨在壓力附近,不滿1R不發計畫。參考持有5–10個交易日,收盤跌破20日均線視為結構失效。出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。",
     "note": "這是同一套技術規則加上公開法人買賣超的分級建議,不是保證獲利的進出場點。強力推薦需要量能跟上、近5日不輸大盤,且缺資料時不會當成強勢。大盤跌破20MA時不發強力推薦。出場只列出日前推薦標的的停利/停損狀態。任何買賣都是你自己的判斷與責任。"
   },
   "candidates": [
@@ -2308,31 +1662,17 @@
       "structure": 66.5,
       "crowding": 54.8,
       "score": 39.1,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 14.76,
-        "entry_high": 14.88,
-        "stop": 14.16,
-        "tp1": 15.81,
-        "tp2": 16.47,
-        "resistance_20d": 15.47,
-        "invalid_below": 14.63,
-        "atr": 0.3955,
-        "risk_pct": 4.45,
-        "tp1_pct": 6.68,
-        "tp2_pct": 11.13,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 15.47 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "強於大盤"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 56.2,
@@ -2368,32 +1708,18 @@
       "structure": 56.6,
       "crowding": 43.9,
       "score": 37.7,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 242.4,
-        "entry_high": 243.8,
-        "stop": 235.55,
-        "tp1": 254.45,
-        "tp2": 262.0,
-        "resistance_20d": 248.85,
-        "invalid_below": 241.45,
-        "atr": 4.5605,
-        "risk_pct": 3.11,
-        "tp1_pct": 4.67,
-        "tp2_pct": 7.77,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 248.85 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "強於大盤",
         "投信買超"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 54.3,
@@ -2474,32 +1800,18 @@
       "structure": 63.0,
       "crowding": 54.4,
       "score": 35.8,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 41.18,
-        "entry_high": 41.43,
-        "stop": 39.93,
-        "tp1": 43.37,
-        "tp2": 44.75,
-        "resistance_20d": 42.62,
-        "invalid_below": 40.81,
-        "atr": 0.8298,
-        "risk_pct": 3.33,
-        "tp1_pct": 5.0,
-        "tp2_pct": 8.34,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 42.62 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "強於大盤",
         "外資買超"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 56.7,
@@ -3474,31 +2786,17 @@
       "structure": 66.5,
       "crowding": 54.8,
       "score": 39.1,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 14.76,
-        "entry_high": 14.88,
-        "stop": 14.16,
-        "tp1": 15.81,
-        "tp2": 16.47,
-        "resistance_20d": 15.47,
-        "invalid_below": 14.63,
-        "atr": 0.3955,
-        "risk_pct": 4.45,
-        "tp1_pct": 6.68,
-        "tp2_pct": 11.13,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 15.47 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "強於大盤"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 56.2,
@@ -3534,32 +2832,18 @@
       "structure": 56.6,
       "crowding": 43.9,
       "score": 37.7,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 242.4,
-        "entry_high": 243.8,
-        "stop": 235.55,
-        "tp1": 254.45,
-        "tp2": 262.0,
-        "resistance_20d": 248.85,
-        "invalid_below": 241.45,
-        "atr": 4.5605,
-        "risk_pct": 3.11,
-        "tp1_pct": 4.67,
-        "tp2_pct": 7.77,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 248.85 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "強於大盤",
         "投信買超"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 54.3,
@@ -3640,32 +2924,18 @@
       "structure": 63.0,
       "crowding": 54.4,
       "score": 35.8,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 41.18,
-        "entry_high": 41.43,
-        "stop": 39.93,
-        "tp1": 43.37,
-        "tp2": 44.75,
-        "resistance_20d": 42.62,
-        "invalid_below": 40.81,
-        "atr": 0.8298,
-        "risk_pct": 3.33,
-        "tp1_pct": 5.0,
-        "tp2_pct": 8.34,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 42.62 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "強於大盤",
         "外資買超"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 56.7,
@@ -3832,31 +3102,17 @@
       "structure": 57.0,
       "crowding": 50.9,
       "score": 31.6,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 12.72,
-        "entry_high": 12.78,
-        "stop": 12.43,
-        "tp1": 13.23,
-        "tp2": 13.55,
-        "resistance_20d": 12.97,
-        "invalid_below": 12.56,
-        "atr": 0.1781,
-        "risk_pct": 2.51,
-        "tp1_pct": 3.76,
-        "tp2_pct": 6.27,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 12.97 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "強於大盤"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 60.8,
@@ -3937,33 +3193,19 @@
       "structure": 56.5,
       "crowding": 51.7,
       "score": 30.7,
-      "action": "scale_in",
-      "action_label": "分批進場",
-      "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
-      "plan": {
-        "horizon": "5–10 個交易日",
-        "entry_low": 33.43,
-        "entry_high": 33.58,
-        "stop": 32.66,
-        "tp1": 34.78,
-        "tp2": 35.62,
-        "resistance_20d": 34.19,
-        "invalid_below": 33.08,
-        "atr": 0.5072,
-        "risk_pct": 2.52,
-        "tp1_pct": 3.81,
-        "tp2_pct": 6.31,
-        "rr1": 1.5,
-        "rr2": 2.5,
-        "method": "進場等回檔至5日均線附近;停損預設1.5×Wilder ATR,若10日低點更近且風險仍≥max(1×ATR, 2.5%)才改用結構停損;停利1.5R/2.5R。ETF 與普通股使用不同跳動單位。"
-      },
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "上檔20日高點 34.19 相對停損不滿1R,空間不足先觀望",
+      "plan": null,
       "tags": [
         "ETF",
         "5/20MA黃金交叉",
         "強於大盤",
         "外資買超"
       ],
-      "risk_tags": [],
+      "risk_tags": [
+        "上檔有壓"
+      ],
       "detail": {
         "kind": "etf",
         "rsi14": 58.9,

@@ -129,6 +129,7 @@
     {
       "date": "2026-09-03",
       "taiex_change_pct": -0.67,
+      "taiex_close": 45857.66,
       "market_regime": "risk_on",
       "candidates": [
         {
@@ -317,10 +318,10 @@
           "kind": "etf",
           "close": 14.88,
           "score": 39.1,
-          "action": "scale_in",
-          "stop": 14.16,
-          "tp1": 15.81,
-          "tp2": 16.47,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 14.63
         },
         {
@@ -329,10 +330,10 @@
           "kind": "etf",
           "close": 243.8,
           "score": 37.7,
-          "action": "scale_in",
-          "stop": 235.55,
-          "tp1": 254.45,
-          "tp2": 262.0,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 241.47
         },
         {
@@ -353,10 +354,10 @@
           "kind": "etf",
           "close": 41.43,
           "score": 35.8,
-          "action": "scale_in",
-          "stop": 39.93,
-          "tp1": 43.37,
-          "tp2": 44.75,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 40.81
         },
         {
@@ -619,10 +620,10 @@
           "kind": "etf",
           "close": 14.88,
           "score": 39.1,
-          "action": "scale_in",
-          "stop": 14.16,
-          "tp1": 15.81,
-          "tp2": 16.47,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 14.63
         },
         {
@@ -631,10 +632,10 @@
           "kind": "etf",
           "close": 243.8,
           "score": 37.7,
-          "action": "scale_in",
-          "stop": 235.55,
-          "tp1": 254.45,
-          "tp2": 262.0,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 241.47
         },
         {
@@ -655,10 +656,10 @@
           "kind": "etf",
           "close": 41.43,
           "score": 35.8,
-          "action": "scale_in",
-          "stop": 39.93,
-          "tp1": 43.37,
-          "tp2": 44.75,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 40.81
         },
         {
@@ -703,10 +704,10 @@
           "kind": "etf",
           "close": 12.78,
           "score": 31.6,
-          "action": "scale_in",
-          "stop": 12.43,
-          "tp1": 13.23,
-          "tp2": 13.55,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 12.56
         },
         {
@@ -727,10 +728,10 @@
           "kind": "etf",
           "close": 33.58,
           "score": 30.7,
-          "action": "scale_in",
-          "stop": 32.66,
-          "tp1": 34.78,
-          "tp2": 35.62,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
           "ma20": 33.08
         },
         {
@@ -741,21 +742,9 @@
           "score": 31.5,
           "action": "scale_in",
           "stop": 113.5,
-          "tp1": 139.5,
+          "tp1": 136.5,
           "tp2": 149.5,
           "ma20": 122.58
-        },
-        {
-          "code": "0056",
-          "name": "元大高股息",
-          "kind": "etf",
-          "close": 54.5,
-          "score": 29.2,
-          "action": "scale_in",
-          "stop": 52.6,
-          "tp1": 56.95,
-          "tp2": 58.65,
-          "ma20": 53.08
         },
         {
           "code": "2474",
@@ -765,7 +754,7 @@
           "score": 37.0,
           "action": "scale_in",
           "stop": 198.0,
-          "tp1": 217.5,
+          "tp1": 214.5,
           "tp2": 225.5,
           "ma20": 204.78
         },

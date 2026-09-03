@@ -159,7 +159,7 @@
   .board{margin-top:28px;}
   .board-head, .row-main{
     display:grid;
-    grid-template-columns:40px 1fr 76px 76px 64px 64px 1.3fr;
+    grid-template-columns:40px 1fr 76px 76px 52px 52px 52px 1.3fr;
     gap:10px;
     align-items:center;
     padding:12px 10px 6px;
@@ -188,13 +188,14 @@
     font-size:12.5px;
     margin-right:6px;
   }
-  .col-price, .col-change, .col-struct, .col-crowd{
+  .col-price, .col-change, .col-score, .col-struct, .col-crowd{
     font-family:var(--mono);
     text-align:right;
     white-space:nowrap;
   }
   .col-change.up{color:var(--up);}
   .col-change.down{color:var(--down);}
+  .col-score{color:var(--text);}
   .col-struct{color:var(--gold);}
   .col-crowd{color:var(--text-dim);}
   .col-crowd.high{color:var(--up);}
@@ -410,6 +411,7 @@
     .col-name{grid-column:1 / -1;}
     .col-price::before{content:"現價 ";color:var(--text-dim);}
     .col-change::before{content:"漲跌 ";color:var(--text-dim);}
+    .col-score::before{content:"總分 ";color:var(--text-dim);}
     .col-struct::before{content:"結構 ";color:var(--text-dim);}
     .col-crowd::before{content:"擁擠 ";color:var(--text-dim);}
     .col-tags{grid-column:1 / -1;justify-content:flex-start;}
@@ -486,6 +488,7 @@
       <div>股票</div>
       <div class="col-price">現價</div>
       <div class="col-change">漲跌幅</div>
+      <div class="col-score">總分</div>
       <div class="col-struct">結構</div>
       <div class="col-crowd">擁擠</div>
       <div>觸發條件</div>
@@ -496,7 +499,7 @@
 
   <div class="method">
     <h2>怎麼算出來的</h2>
-    <p id="methodBody">每天收盤後,先用證交所公開資料抓全上市股票做流動性初篩,再對候選股票計算近 90 個交易日的均線、RSI(14, Wilder)、ATR 延伸、量能、相對大盤強弱。各因子在候選池內改成百分位,拆成結構分(趨勢剛對齊、RSI 健康、尚未過度延伸)與擁擠分(量已放大、已超額、當日波動、價格延伸)。觀察排序 = 結構 − 擁擠 × 0.5,接近漲停或今日大漲另外降權。</p>
+    <p id="methodBody">每天收盤後,先用證交所公開資料抓全上市股票做流動性初篩,再對候選股票計算近 90 個交易日的均線、RSI(14, Wilder)、ATR 延伸、量能、相對大盤強弱。各因子在候選池內改成百分位,拆成結構分(趨勢剛對齊、RSI 健康、尚未過度延伸)與擁擠分(量已放大、已超額、當日波動、價格延伸)。觀察排序 = 結構 − 擁擠 × 0.5 + 法人加減分 − 降權。進場計畫若 1.5R 穿過 20 日高點,會改錨在壓力附近;不滿 1R 不發計畫。</p>
     <div class="weights" id="weightsRow"></div>
     <p id="sourceBody">現價與漲跌幅來自台灣證券交易所當日快照;技術指標來自 Yahoo Finance 歷史K線,兩者可能有微小差異。</p>
   </div>
@@ -595,6 +598,12 @@ function renderReview(review) {
   }
   if (typeof review.avg_return_5d === "number") {
     bits.push(`<span>清單 5 日 <b class="${signedClass(review.avg_return_5d)}">${fmtSigned(review.avg_return_5d)}%</b>（自 ${review.from_date_5d}）</span>`);
+  }
+  if (typeof review.taiex_return_5d === "number") {
+    bits.push(`<span>大盤 5 日 <b class="${signedClass(review.taiex_return_5d)}">${fmtSigned(review.taiex_return_5d)}%</b></span>`);
+  }
+  if (typeof review.excess_5d === "number") {
+    bits.push(`<span>5日超額 <b class="${signedClass(review.excess_5d)}">${fmtSigned(review.excess_5d)}%</b></span>`);
   }
   document.getElementById("reviewNums").innerHTML = bits.join("");
   document.getElementById("reviewNote").textContent = review.note
@@ -712,9 +721,9 @@ function renderTradeTable(pack) {
         <th>現價</th>
         <th>進場區間</th>
         <th>停損</th>
-        <th>停利1 (1.5R)</th>
-        <th>停利2 (2.5R)</th>
-        <th>風險</th>
+        <th>停利1</th>
+        <th>停利2</th>
+        <th>上檔空間</th>
         <th>20日壓力</th>
         <th>失效</th>
         <th>天數</th>
@@ -730,9 +739,9 @@ function renderTradeTable(pack) {
           <td>${px(c.close)}</td>
           <td>${entry}</td>
           <td class="stop">${px(p.stop)}${p.risk_pct != null ? ` (${p.risk_pct}%)` : ""}</td>
-          <td class="tp">${px(p.tp1)}${p.tp1_pct != null ? ` (+${p.tp1_pct}%)` : ""}</td>
+          <td class="tp">${px(p.tp1)}${p.tp1_pct != null ? ` (+${p.tp1_pct}%)` : ""}${p.rr1 != null ? ` / ${p.rr1}R` : ""}</td>
           <td class="tp">${px(p.tp2)}${p.tp2_pct != null ? ` (+${p.tp2_pct}%)` : ""}</td>
-          <td>${p.risk_pct != null ? p.risk_pct + "%" : "—"}</td>
+          <td>${p.headroom_pct != null ? `${fmtSigned(p.headroom_pct)}%` : "—"}</td>
           <td>${px(p.resistance_20d)}</td>
           <td>收盤跌破 ${px(p.invalid_below)}</td>
           <td>${p.horizon || "5–10 日"}</td>
@@ -763,6 +772,7 @@ function renderRows(candidates) {
           <div class="col-name"><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}${c.action_label ? `<span class="action-flag ${c.action || ""}">${c.action_label}</span>` : ""}</div>
           <div class="col-price">${closeText(c.close)}</div>
           <div class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</div>
+          <div class="col-score">${c.score != null ? Number(c.score).toFixed(1) : "—"}</div>
           <div class="col-struct">${Number(c.structure || 0).toFixed(0)}</div>
           <div class="col-crowd ${crowdCls}">${Number(c.crowding || 0).toFixed(0)}</div>
           <div class="col-tags">${cond}${risk}</div>
