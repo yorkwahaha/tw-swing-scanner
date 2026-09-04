@@ -852,10 +852,6 @@ async function init() {
     });
   });
   applyFilter();
-  const methodEl = document.getElementById("methodBody");
-  if (data.methodology && data.methodology.ranking) {
-    methodEl.textContent = `排序規則:${data.methodology.ranking}。${data.methodology.note || ""}`;
-  }
   const src = [data.price_source, data.indicator_source].filter(Boolean).join("。");
   if (src) document.getElementById("sourceBody").textContent = src;
 }

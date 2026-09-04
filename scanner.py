@@ -260,25 +260,46 @@ def normalize_ohlcv_index(hist: pd.DataFrame) -> pd.DataFrame:
 
 
 def overlay_last_bar(hist: pd.DataFrame, as_of: str, bar: dict | None) -> pd.DataFrame:
-    """Yahoo 常缺當日收盤;用證交所 OHLC 覆寫/補上同一交易日。"""
+    """Yahoo 常缺當日收盤;用證交所 OHLC 覆寫/補上同一交易日。
+    Adj Close 不直接寫成未還原收盤,以免除息日把 5 日相對報酬再次算成跳空。"""
     df = normalize_ohlcv_index(hist)
     if not bar or bar.get("close") is None or pd.isna(bar.get("close")):
         return df
     ts = pd.Timestamp(as_of)
-    new = {c: (df.loc[ts, c] if ts in df.index else np.nan) for c in df.columns}
+    had_row = ts in df.index
+    new = {c: (df.loc[ts, c] if had_row else np.nan) for c in df.columns}
     mapping = {
         "Open": bar.get("open"),
         "High": bar.get("high"),
         "Low": bar.get("low"),
         "Close": bar.get("close"),
-        "Adj Close": bar.get("close"),
         "Volume": bar.get("volume"),
     }
     for col, val in mapping.items():
         if col in df.columns and val is not None and not pd.isna(val):
             new[col] = val
+    if "Adj Close" in df.columns and not had_row:
+        new["Adj Close"] = _chained_adj_close(df, ts, bar)
     df.loc[ts] = pd.Series(new)
     return df.sort_index()
+
+
+def _chained_adj_close(df: pd.DataFrame, ts: pd.Timestamp, bar: dict):
+    """新K棒的還原價 = 前日還原價 × 官方除權息校正報酬。"""
+    close = bar.get("close")
+    prev = df[df.index < ts]
+    if prev.empty or close is None or pd.isna(close):
+        return close
+    prev_adj = prev["Adj Close"].iloc[-1] if "Adj Close" in prev.columns else np.nan
+    if prev_adj is None or pd.isna(prev_adj):
+        return close
+    change = bar.get("change")
+    if change is not None and not pd.isna(change) and float(close) - float(change) > 0:
+        return float(prev_adj) * float(close) / (float(close) - float(change))
+    prev_close = prev["Close"].iloc[-1]
+    if prev_close and not pd.isna(prev_close) and float(prev_close) > 0:
+        return float(prev_adj) * float(close) / float(prev_close)
+    return close
 
 
 def _as_naive_dates(idx) -> pd.DatetimeIndex:
@@ -1730,7 +1751,7 @@ def main():
         bar_map = {
             str(r.code): {
                 "open": r.open, "high": r.high, "low": r.low,
-                "close": r.close, "volume": r.volume,
+                "close": r.close, "volume": r.volume, "change": r.change,
             }
             for r in pool.itertuples()
         }
