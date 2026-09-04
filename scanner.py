@@ -838,6 +838,7 @@ def rank_features(rows: list[FeatureRow]) -> list[Candidate]:
                         "volume": round(float(ranks.at[i, "volume"]), 0),
                         "relative": round(float(ranks.at[i, "relative"]), 0),
                         "day_move": round(float(ranks.at[i, "day_move"]), 0),
+                        "extension": round(float(ranks.at[i, "extension"]), 0),
                     },
                 },
             )
@@ -1618,7 +1619,7 @@ def build_demo_output(top_n: int) -> dict:
                     "trust_streak": spec.get("streak", 0),
                     "factors": {
                         "trend": 70, "rsi": 70, "not_extended": 60,
-                        "volume": 40, "relative": 40, "day_move": 40,
+                        "volume": 40, "relative": 40, "day_move": 40, "extension": 40,
                     },
                 },
             )
@@ -1720,6 +1721,12 @@ def main():
         if isinstance(taiex_change_pct, (int, float)):
             taiex_change_pct = round(float(taiex_change_pct), 2)
 
+        snap_taiex_close = official_taiex_close
+        if snap_taiex_close is None and taiex_hist is not None:
+            closes = taiex_hist["Close"].dropna()
+            if not closes.empty:
+                snap_taiex_close = float(closes.iloc[-1])
+
         bar_map = {
             str(r.code): {
                 "open": r.open, "high": r.high, "low": r.low,
@@ -1755,7 +1762,7 @@ def main():
         assign_actions(candidates, market.get("regime") or "unknown")
         snap_path = snapshots_path_for(out_path)
         history = load_snapshots(snap_path)
-        review = build_review(history, snapshot, as_of, taiex_change_pct, official_taiex_close)
+        review = build_review(history, snapshot, as_of, taiex_change_pct, snap_taiex_close)
         trim_items, exit_items = build_exit_from_history(
             candidates, history, as_of, snapshot, blocked,
         )
@@ -1768,7 +1775,7 @@ def main():
         today_entry = {
             "date": as_of,
             "taiex_change_pct": taiex_change_pct,
-            "taiex_close": official_taiex_close,
+            "taiex_close": snap_taiex_close,
             "market_regime": market.get("regime"),
             "candidates": [snapshot_entry(c) for c in mixed],
             "tracked_pool": [snapshot_entry(c) for c in tracked_candidates(candidates, args.top)],

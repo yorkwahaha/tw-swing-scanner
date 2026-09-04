@@ -651,6 +651,7 @@ function factorLine(detail) {
     ["volume", "量能"],
     ["relative", "相對"],
     ["day_move", "當日"],
+    ["extension", "延伸"],
   ].map(([k, label]) => `${label} <b>${f[k] != null ? Number(f[k]).toFixed(0) : "—"}</b>`).join(" ");
   const extras = [];
   if (detail && detail.rsi14 != null) extras.push(`RSI值 <b>${detail.rsi14}</b>`);
@@ -676,8 +677,10 @@ function fmtLots(shares) {
   return n > 0 ? `+${n}` : String(n);
 }
 
-function closeText(close) {
+function closeText(close, kind) {
   const n = Number(close);
+  if (Number.isNaN(n)) return "—";
+  if (kind === "etf") return n.toFixed(2);
   return n.toFixed(n >= 100 ? 1 : 2);
 }
 
@@ -703,7 +706,7 @@ function renderLazyPack(pack) {
       return `<div class="lazy-item">
         <div class="top">
           <div><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}</div>
-          <div class="px">${closeText(c.close)} <span class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</span></div>
+          <div class="px">${closeText(c.close, c.kind)} <span class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</span></div>
         </div>
         <div class="why">${c.reason || ""}${Number(c.structure || 0) || Number(c.crowding || 0) ? ` · 結構 ${Number(c.structure || 0).toFixed(0)} / 擁擠 ${Number(c.crowding || 0).toFixed(0)}` : ""}</div>
       </div>`;
@@ -712,9 +715,9 @@ function renderLazyPack(pack) {
   });
 }
 
-function px(n) {
+function px(n, kind) {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
-  return closeText(n);
+  return closeText(n, kind);
 }
 
 function renderTradeTable(pack) {
@@ -748,18 +751,19 @@ function renderTradeTable(pack) {
     <tbody>
       ${rows.map((c) => {
         const p = c.plan || {};
-        const entry = p.entry_low != null ? `${px(p.entry_low)}–${px(p.entry_high)}` : "—";
+        const k = c.kind;
+        const entry = p.entry_low != null ? `${px(p.entry_low, k)}–${px(p.entry_high, k)}` : "—";
         return `<tr>
           <td>${c.action_label || ""}</td>
           <td class="name"><span class="code">${c.code}</span> ${c.name}${kindLabel(c.kind)}</td>
-          <td>${px(c.close)}</td>
+          <td>${px(c.close, k)}</td>
           <td>${entry}</td>
-          <td class="stop">${px(p.stop)}${p.risk_pct != null ? ` (${p.risk_pct}%)` : ""}</td>
-          <td class="tp">${px(p.tp1)}${p.tp1_pct != null ? ` (+${p.tp1_pct}%)` : ""}${p.rr1 != null ? ` / ${p.rr1}R` : ""}</td>
-          <td class="tp">${px(p.tp2)}${p.tp2_pct != null ? ` (+${p.tp2_pct}%)` : ""}${p.rr2 != null ? ` / ${p.rr2}R` : ""}</td>
+          <td class="stop">${px(p.stop, k)}${p.risk_pct != null ? ` (${p.risk_pct}%)` : ""}</td>
+          <td class="tp">${px(p.tp1, k)}${p.tp1_pct != null ? ` (+${p.tp1_pct}%)` : ""}${p.rr1 != null ? ` / ${p.rr1}R` : ""}</td>
+          <td class="tp">${px(p.tp2, k)}${p.tp2_pct != null ? ` (+${p.tp2_pct}%)` : ""}${p.rr2 != null ? ` / ${p.rr2}R` : ""}</td>
           <td>${p.headroom_pct != null ? `${fmtSigned(p.headroom_pct)}%` : "—"}</td>
-          <td>${px(p.resistance_20d)}</td>
-          <td>收盤跌破 ${px(p.invalid_below)}</td>
+          <td>${px(p.resistance_20d, k)}</td>
+          <td>收盤跌破 ${px(p.invalid_below, k)}</td>
           <td>${p.horizon || "5–10 日"}</td>
         </tr>`;
       }).join("")}
@@ -786,7 +790,7 @@ function renderRows(candidates) {
         <div class="row-main">
           <div class="col-rank">${i + 1}</div>
           <div class="col-name" data-rank="${i + 1}"><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}${c.action_label ? `<span class="action-flag ${c.action || ""}">${c.action_label}</span>` : ""}</div>
-          <div class="col-price">${closeText(c.close)}</div>
+          <div class="col-price">${closeText(c.close, c.kind)}</div>
           <div class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</div>
           <div class="col-score">${c.score != null ? Number(c.score).toFixed(1) : "—"}</div>
           <div class="col-struct">${Number(c.structure || 0).toFixed(0)}</div>
