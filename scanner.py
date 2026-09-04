@@ -668,8 +668,8 @@ def extract_features(
         prev_rsi = float(rsi.dropna().iloc[-2])
         if prev_rsi < 50 <= last_rsi:
             tags.append("RSI轉強")
-        if last_rsi > 80:
-            risk_tags.append("短線過熱")
+    if last_rsi is not None and last_rsi > 70:
+        risk_tags.append("短線過熱")
 
     if vol_ratio is not None and vol_ratio >= 1.5:
         tags.append("成交量放大")

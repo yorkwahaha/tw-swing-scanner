@@ -374,6 +374,7 @@
     font-size:12.5px;
     margin:0 0 12px;
   }
+  .plan-swipe{display:none;}
   .plan-table{
     width:100%;
     border-collapse:collapse;
@@ -433,6 +434,12 @@
     .col-tags{grid-column:1 / -1;justify-content:flex-start;}
     .row-factors{padding:0 10px 8px;}
     .lazy-grid{grid-template-columns:1fr;}
+    .plan-swipe{
+      display:block;
+      color:var(--text-dim);
+      font-size:12px;
+      margin:-4px 0 10px;
+    }
   }
 
   @media (prefers-reduced-motion:no-preference){
@@ -486,6 +493,7 @@
   <div class="plan-wrap">
     <h2>超級懶人包 · 進場區間與停利停損</h2>
     <p class="plan-note" id="planNote">進場等回檔,停損是盤中極端防守價,失效是收盤跌破20MA。今天若沒有進場名單,表會是空的。</p>
+    <p class="plan-swipe">小螢幕可左右滑動,查看停損、停利與20日壓力。</p>
     <table class="plan-table" id="planTable"></table>
     <div class="plan-empty" id="planEmpty" style="display:none;">今天沒有通過進場門檻的標的,因此沒有進出場區間。</div>
   </div>
@@ -515,7 +523,7 @@
 
   <div class="method">
     <h2>怎麼算出來的</h2>
-    <p id="methodBody">每天收盤後,先用證交所公開資料抓全上市股票做流動性初篩,再對候選股票計算近 90 個交易日的均線、RSI(14, Wilder)、ATR 延伸、量能、相對大盤強弱。各因子在候選池內改成百分位,拆成結構分(趨勢剛對齊、RSI 健康、尚未過度延伸)與擁擠分(量已放大、已超額、當日波動、價格延伸)。觀察排序 = 結構 − 擁擠 × 0.5 + 法人加減分 − 降權。進場計畫若 1.5R 穿過 20 日高點,會改錨在壓力附近;不滿 1R 不發計畫。</p>
+    <p id="methodBody">每天收盤後,先用證交所公開資料抓全上市股票做流動性初篩,再對候選股票計算近 1 年歷史日K的均線、RSI(14, Wilder)、ATR 延伸、量能、相對大盤強弱。各因子在候選池內改成百分位,拆成結構分(趨勢剛對齊、RSI 健康、尚未過度延伸)與擁擠分(量已放大、已超額、當日波動、價格延伸)。觀察排序 = 結構 − 擁擠 × 0.5 + 法人加減分 − 降權。進場計畫若 1.5R 穿過 20 日高點,會改錨在壓力附近;不滿 1R 不發計畫。</p>
     <div class="weights" id="weightsRow"></div>
     <p id="sourceBody">現價與漲跌幅來自台灣證券交易所當日快照;技術指標來自 Yahoo Finance 歷史K線,兩者可能有微小差異。</p>
   </div>
@@ -673,8 +681,13 @@ function fmtLots(shares) {
   if (shares === null || shares === undefined || Number.isNaN(Number(shares))) return null;
   const lots = Number(shares) / 1000;
   const digits = Math.abs(lots) >= 10 ? 0 : 1;
-  const n = Number(lots.toFixed(digits));
-  return n > 0 ? `+${n}` : String(n);
+  const formatted = Math.abs(lots).toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  });
+  if (lots > 0) return `+${formatted}`;
+  if (lots < 0) return `-${formatted}`;
+  return "0";
 }
 
 function closeText(close, kind) {
