@@ -485,7 +485,7 @@
 
   <div class="plan-wrap">
     <h2>超級懶人包 · 進場區間與停利停損</h2>
-    <p class="plan-note" id="planNote">進場等回檔,停損用 ATR 與波段低點,停利用固定風險報酬。今天若沒有進場名單,表會是空的。</p>
+    <p class="plan-note" id="planNote">進場等回檔,停損是盤中極端防守價,失效是收盤跌破20MA。今天若沒有進場名單,表會是空的。</p>
     <table class="plan-table" id="planTable"></table>
     <div class="plan-empty" id="planEmpty" style="display:none;">今天沒有通過進場門檻的標的,因此沒有進出場區間。</div>
   </div>
@@ -705,7 +705,7 @@ function renderLazyPack(pack) {
           <div><span class="code">${c.code}</span>${c.name}${kindLabel(c.kind)}</div>
           <div class="px">${closeText(c.close)} <span class="col-change ${changeCls}">${fmtSigned(c.change_pct)}%</span></div>
         </div>
-        <div class="why">${c.reason || ""} · 結構 ${Number(c.structure || 0).toFixed(0)} / 擁擠 ${Number(c.crowding || 0).toFixed(0)}</div>
+        <div class="why">${c.reason || ""}${Number(c.structure || 0) || Number(c.crowding || 0) ? ` · 結構 ${Number(c.structure || 0).toFixed(0)} / 擁擠 ${Number(c.crowding || 0).toFixed(0)}` : ""}</div>
       </div>`;
     }).join("");
     el.innerHTML = `<h3>${label}<span class="n">${shown.length}${total > shown.length ? ` / ${total}` : ""} 檔</span></h3>${items || `<div class="lazy-empty">${emptyText}</div>`}`;

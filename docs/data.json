@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-04T07:56:02.270608+08:00",
+  "updated_at": "2026-09-04T08:04:46.940059+08:00",
   "as_of": "2026-09-03",
   "taiex_change_pct": -0.67,
   "market": {
@@ -64,8 +64,8 @@
           "close": 206.5,
           "change_pct": -2.13,
           "structure": 65.9,
-          "crowding": 51.9,
-          "score": 37.0,
+          "crowding": 51.7,
+          "score": 37.1,
           "action": "scale_in",
           "action_label": "分批進場",
           "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
@@ -128,7 +128,7 @@
           "close": 35.5,
           "change_pct": 1.28,
           "structure": 63.5,
-          "crowding": 53.0,
+          "crowding": 52.8,
           "score": 37.0,
           "action": "scale_in",
           "action_label": "分批進場",
@@ -178,7 +178,7 @@
               "rsi": 100.0,
               "not_extended": 37.0,
               "volume": 43.0,
-              "relative": 80.0,
+              "relative": 79.0,
               "day_move": 26.0
             }
           }
@@ -190,7 +190,7 @@
           "close": 125.0,
           "change_pct": -0.79,
           "structure": 57.6,
-          "crowding": 52.2,
+          "crowding": 52.0,
           "score": 31.5,
           "action": "scale_in",
           "action_label": "分批進場",
@@ -252,7 +252,7 @@
     },
     "watch": {
       "label": "觀望",
-      "count": 211,
+      "count": 212,
       "items": [
         {
           "code": "6213",
@@ -261,7 +261,7 @@
           "close": 512.0,
           "change_pct": -4.48,
           "structure": 81.2,
-          "crowding": 41.8,
+          "crowding": 41.7,
           "score": 51.3,
           "action": "watch",
           "action_label": "觀望",
@@ -352,7 +352,7 @@
           "close": 164.5,
           "change_pct": -2.08,
           "structure": 73.4,
-          "crowding": 62.5,
+          "crowding": 62.4,
           "score": 48.2,
           "action": "watch",
           "action_label": "觀望",
@@ -385,7 +385,7 @@
               "rsi": 88.0,
               "not_extended": 21.0,
               "volume": 49.0,
-              "relative": 79.0,
+              "relative": 78.0,
               "day_move": 43.0
             }
           }
@@ -485,8 +485,8 @@
           "close": 191.5,
           "change_pct": -4.01,
           "structure": 72.8,
-          "crowding": 40.1,
-          "score": 46.8,
+          "crowding": 40.0,
+          "score": 46.9,
           "action": "watch",
           "action_label": "觀望",
           "reason": "量比 0.47、近5日相對大盤 -6.78%,比較像沒人買或相對弱,不是剛啟動",
@@ -518,7 +518,7 @@
               "rsi": 85.0,
               "not_extended": 30.0,
               "volume": 3.0,
-              "relative": 12.0,
+              "relative": 11.0,
               "day_move": 75.0
             }
           }
@@ -574,8 +574,8 @@
           "close": 299.0,
           "change_pct": -5.08,
           "structure": 75.8,
-          "crowding": 64.5,
-          "score": 43.6,
+          "crowding": 64.3,
+          "score": 43.7,
           "action": "watch",
           "action_label": "觀望",
           "reason": "條件好壞參半,先看不急著動",
@@ -606,7 +606,7 @@
               "rsi": 93.0,
               "not_extended": 30.0,
               "volume": 55.0,
-              "relative": 49.0,
+              "relative": 48.0,
               "day_move": 83.0
             }
           }
@@ -624,8 +624,8 @@
           "close": 265.5,
           "change_pct": 3.31,
           "structure": 65.6,
-          "crowding": 73.4,
-          "score": 29.0,
+          "crowding": 73.6,
+          "score": 28.8,
           "action": "trim",
           "action_label": "部分賣出",
           "reason": "日前推薦(2026-09-02) 擁擠分偏高,動能高檔鈍化,建議先減碼獲利",
@@ -644,7 +644,7 @@
             "above_ma20": true,
             "atr_extension": 1.24,
             "dist_from_high_20d_pct": 6.84,
-            "excess_5d_pct": 2.57,
+            "excess_5d_pct": 2.76,
             "atr": 18.8867,
             "ma5": 263.4,
             "ma20": 242.07,
@@ -658,7 +658,7 @@
               "rsi": 69.0,
               "not_extended": 22.0,
               "volume": 77.0,
-              "relative": 74.0,
+              "relative": 75.0,
               "day_move": 64.0
             }
           }
@@ -783,7 +783,7 @@
     "counts": {
       "strong_buy": 0,
       "scale_in": 3,
-      "watch": 211,
+      "watch": 212,
       "trim": 1,
       "exit": 3
     },
@@ -795,8 +795,8 @@
         "close": 206.5,
         "change_pct": -2.13,
         "structure": 65.9,
-        "crowding": 51.9,
-        "score": 37.0,
+        "crowding": 51.7,
+        "score": 37.1,
         "action": "scale_in",
         "action_label": "分批進場",
         "reason": "結構尚可且不是冷清量能,適合分批而不是一次買滿",
@@ -859,7 +859,7 @@
         "close": 35.5,
         "change_pct": 1.28,
         "structure": 63.5,
-        "crowding": 53.0,
+        "crowding": 52.8,
         "score": 37.0,
         "action": "scale_in",
         "action_label": "分批進場",
@@ -909,7 +909,7 @@
             "rsi": 100.0,
             "not_extended": 37.0,
             "volume": 43.0,
-            "relative": 80.0,
+            "relative": 79.0,
             "day_move": 26.0
           }
         }
@@ -921,7 +921,7 @@
         "close": 125.0,
         "change_pct": -0.79,
         "structure": 57.6,
-        "crowding": 52.2,
+        "crowding": 52.0,
         "score": 31.5,
         "action": "scale_in",
         "action_label": "分批進場",
@@ -980,7 +980,7 @@
         }
       }
     ],
-    "trade_method": "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,若穿過20日高點則改錨在壓力附近,不滿1R不發計畫。參考持有5–10個交易日,收盤跌破20日均線視為結構失效。出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。",
+    "trade_method": "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,若穿過20日高點則改錨在壓力附近,不滿1R不發計畫。參考持有5–10個交易日,收盤跌破20日均線視為結構失效。停損是盤中極端防守價,失效是收盤結構跌破。出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。",
     "note": "這是同一套技術規則加上公開法人買賣超的分級建議,不是保證獲利的進出場點。強力推薦需要量能跟上、近5日不輸大盤,且缺資料時不會當成強勢。大盤跌破20MA時不發強力推薦。出場只列出日前推薦標的的停利/停損狀態。任何買賣都是你自己的判斷與責任。"
   },
   "candidates": [
@@ -991,7 +991,7 @@
       "close": 512.0,
       "change_pct": -4.48,
       "structure": 81.2,
-      "crowding": 41.8,
+      "crowding": 41.7,
       "score": 51.3,
       "action": "watch",
       "action_label": "觀望",
@@ -1082,7 +1082,7 @@
       "close": 164.5,
       "change_pct": -2.08,
       "structure": 73.4,
-      "crowding": 62.5,
+      "crowding": 62.4,
       "score": 48.2,
       "action": "watch",
       "action_label": "觀望",
@@ -1115,7 +1115,7 @@
           "rsi": 88.0,
           "not_extended": 21.0,
           "volume": 49.0,
-          "relative": 79.0,
+          "relative": 78.0,
           "day_move": 43.0
         }
       }
@@ -1215,8 +1215,8 @@
       "close": 191.5,
       "change_pct": -4.01,
       "structure": 72.8,
-      "crowding": 40.1,
-      "score": 46.8,
+      "crowding": 40.0,
+      "score": 46.9,
       "action": "watch",
       "action_label": "觀望",
       "reason": "量比 0.47、近5日相對大盤 -6.78%,比較像沒人買或相對弱,不是剛啟動",
@@ -1248,7 +1248,7 @@
           "rsi": 85.0,
           "not_extended": 30.0,
           "volume": 3.0,
-          "relative": 12.0,
+          "relative": 11.0,
           "day_move": 75.0
         }
       }
@@ -1304,8 +1304,8 @@
       "close": 299.0,
       "change_pct": -5.08,
       "structure": 75.8,
-      "crowding": 64.5,
-      "score": 43.6,
+      "crowding": 64.3,
+      "score": 43.7,
       "action": "watch",
       "action_label": "觀望",
       "reason": "條件好壞參半,先看不急著動",
@@ -1336,7 +1336,7 @@
           "rsi": 93.0,
           "not_extended": 30.0,
           "volume": 55.0,
-          "relative": 49.0,
+          "relative": 48.0,
           "day_move": 83.0
         }
       }
@@ -1348,8 +1348,8 @@
       "close": 674.0,
       "change_pct": -2.6,
       "structure": 68.1,
-      "crowding": 41.1,
-      "score": 43.5,
+      "crowding": 40.9,
+      "score": 43.6,
       "action": "watch",
       "action_label": "觀望",
       "reason": "量比 0.82,比較像沒人買或相對弱,不是剛啟動",
@@ -1477,13 +1477,57 @@
       }
     },
     {
+      "code": "1709",
+      "name": "和益",
+      "kind": "stock",
+      "close": 33.45,
+      "change_pct": -4.43,
+      "structure": 72.8,
+      "crowding": 60.4,
+      "score": 42.6,
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "條件好壞參半,先看不急著動",
+      "plan": null,
+      "tags": [
+        "個股",
+        "強於大盤"
+      ],
+      "risk_tags": [],
+      "detail": {
+        "kind": "stock",
+        "rsi14": 55.0,
+        "vol_ratio_20d": 0.87,
+        "above_ma20": true,
+        "atr_extension": 0.45,
+        "dist_from_high_20d_pct": 11.27,
+        "excess_5d_pct": 1.16,
+        "atr": 2.4209,
+        "ma5": 34.89,
+        "ma20": 32.36,
+        "swing_low_10": 30.6,
+        "swing_high_20": 37.7,
+        "trust_net": 0,
+        "foreign_net": -1029778,
+        "trust_streak": 0,
+        "factors": {
+          "trend": 86.0,
+          "rsi": 80.0,
+          "not_extended": 41.0,
+          "volume": 39.0,
+          "relative": 65.0,
+          "day_move": 78.0
+        }
+      }
+    },
+    {
       "code": "4927",
       "name": "泰鼎-KY",
       "kind": "stock",
       "close": 40.55,
       "change_pct": -4.14,
       "structure": 75.5,
-      "crowding": 66.8,
+      "crowding": 66.7,
       "score": 42.1,
       "action": "watch",
       "action_label": "觀望",
@@ -1515,7 +1559,7 @@
           "rsi": 94.0,
           "not_extended": 16.0,
           "volume": 48.0,
-          "relative": 58.0,
+          "relative": 57.0,
           "day_move": 77.0
         }
       }
@@ -1610,58 +1654,14 @@
       }
     },
     {
-      "code": "4967",
-      "name": "十銓",
-      "kind": "stock",
-      "close": 272.5,
-      "change_pct": -1.98,
-      "structure": 62.9,
-      "crowding": 39.7,
-      "score": 40.1,
-      "action": "watch",
-      "action_label": "觀望",
-      "reason": "條件好壞參半,先看不急著動",
-      "plan": null,
-      "tags": [
-        "個股",
-        "投信買超"
-      ],
-      "risk_tags": [],
-      "detail": {
-        "kind": "stock",
-        "rsi14": 55.1,
-        "vol_ratio_20d": 1.01,
-        "above_ma20": false,
-        "atr_extension": -0.05,
-        "dist_from_high_20d_pct": 6.52,
-        "excess_5d_pct": -0.83,
-        "atr": 10.9326,
-        "ma5": 275.2,
-        "ma20": 273.1,
-        "swing_low_10": 264.0,
-        "swing_high_20": 291.5,
-        "trust_net": 121000,
-        "foreign_net": -1587562,
-        "trust_streak": 1,
-        "factors": {
-          "trend": 37.0,
-          "rsi": 82.0,
-          "not_extended": 78.0,
-          "volume": 49.0,
-          "relative": 46.0,
-          "day_move": 41.0
-        }
-      }
-    },
-    {
       "code": "00400A",
       "name": "主動國泰動能高息",
       "kind": "etf",
       "close": 14.88,
       "change_pct": -1.91,
       "structure": 66.5,
-      "crowding": 54.8,
-      "score": 39.1,
+      "crowding": 54.6,
+      "score": 39.2,
       "action": "watch",
       "action_label": "觀望",
       "reason": "上檔20日高點 15.47 相對停損不滿1R,空間不足先觀望",
@@ -1694,7 +1694,7 @@
           "rsi": 89.0,
           "not_extended": 36.0,
           "volume": 53.0,
-          "relative": 63.0,
+          "relative": 62.0,
           "day_move": 39.0
         }
       }
@@ -1706,8 +1706,8 @@
       "close": 243.8,
       "change_pct": -0.57,
       "structure": 56.6,
-      "crowding": 43.9,
-      "score": 37.7,
+      "crowding": 43.7,
+      "score": 37.8,
       "action": "watch",
       "action_label": "觀望",
       "reason": "上檔20日高點 248.85 相對停損不滿1R,空間不足先觀望",
@@ -1741,7 +1741,7 @@
           "rsi": 77.0,
           "not_extended": 39.0,
           "volume": 42.0,
-          "relative": 59.0,
+          "relative": 58.0,
           "day_move": 14.0
         }
       }
@@ -1753,8 +1753,8 @@
       "close": 19.77,
       "change_pct": 0.1,
       "structure": 65.9,
-      "crowding": 59.6,
-      "score": 36.0,
+      "crowding": 59.5,
+      "score": 36.1,
       "action": "watch",
       "action_label": "觀望",
       "reason": "條件好壞參半,先看不急著動",
@@ -1798,8 +1798,8 @@
       "close": 41.43,
       "change_pct": -0.84,
       "structure": 63.0,
-      "crowding": 54.4,
-      "score": 35.8,
+      "crowding": 54.3,
+      "score": 35.9,
       "action": "watch",
       "action_label": "觀望",
       "reason": "上檔20日高點 42.62 相對停損不滿1R,空間不足先觀望",
@@ -1890,7 +1890,7 @@
       "close": 512.0,
       "change_pct": -4.48,
       "structure": 81.2,
-      "crowding": 41.8,
+      "crowding": 41.7,
       "score": 51.3,
       "action": "watch",
       "action_label": "觀望",
@@ -1981,7 +1981,7 @@
       "close": 164.5,
       "change_pct": -2.08,
       "structure": 73.4,
-      "crowding": 62.5,
+      "crowding": 62.4,
       "score": 48.2,
       "action": "watch",
       "action_label": "觀望",
@@ -2014,7 +2014,7 @@
           "rsi": 88.0,
           "not_extended": 21.0,
           "volume": 49.0,
-          "relative": 79.0,
+          "relative": 78.0,
           "day_move": 43.0
         }
       }
@@ -2114,8 +2114,8 @@
       "close": 191.5,
       "change_pct": -4.01,
       "structure": 72.8,
-      "crowding": 40.1,
-      "score": 46.8,
+      "crowding": 40.0,
+      "score": 46.9,
       "action": "watch",
       "action_label": "觀望",
       "reason": "量比 0.47、近5日相對大盤 -6.78%,比較像沒人買或相對弱,不是剛啟動",
@@ -2147,7 +2147,7 @@
           "rsi": 85.0,
           "not_extended": 30.0,
           "volume": 3.0,
-          "relative": 12.0,
+          "relative": 11.0,
           "day_move": 75.0
         }
       }
@@ -2203,8 +2203,8 @@
       "close": 299.0,
       "change_pct": -5.08,
       "structure": 75.8,
-      "crowding": 64.5,
-      "score": 43.6,
+      "crowding": 64.3,
+      "score": 43.7,
       "action": "watch",
       "action_label": "觀望",
       "reason": "條件好壞參半,先看不急著動",
@@ -2235,7 +2235,7 @@
           "rsi": 93.0,
           "not_extended": 30.0,
           "volume": 55.0,
-          "relative": 49.0,
+          "relative": 48.0,
           "day_move": 83.0
         }
       }
@@ -2247,8 +2247,8 @@
       "close": 674.0,
       "change_pct": -2.6,
       "structure": 68.1,
-      "crowding": 41.1,
-      "score": 43.5,
+      "crowding": 40.9,
+      "score": 43.6,
       "action": "watch",
       "action_label": "觀望",
       "reason": "量比 0.82,比較像沒人買或相對弱,不是剛啟動",
@@ -2376,13 +2376,57 @@
       }
     },
     {
+      "code": "1709",
+      "name": "和益",
+      "kind": "stock",
+      "close": 33.45,
+      "change_pct": -4.43,
+      "structure": 72.8,
+      "crowding": 60.4,
+      "score": 42.6,
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "條件好壞參半,先看不急著動",
+      "plan": null,
+      "tags": [
+        "個股",
+        "強於大盤"
+      ],
+      "risk_tags": [],
+      "detail": {
+        "kind": "stock",
+        "rsi14": 55.0,
+        "vol_ratio_20d": 0.87,
+        "above_ma20": true,
+        "atr_extension": 0.45,
+        "dist_from_high_20d_pct": 11.27,
+        "excess_5d_pct": 1.16,
+        "atr": 2.4209,
+        "ma5": 34.89,
+        "ma20": 32.36,
+        "swing_low_10": 30.6,
+        "swing_high_20": 37.7,
+        "trust_net": 0,
+        "foreign_net": -1029778,
+        "trust_streak": 0,
+        "factors": {
+          "trend": 86.0,
+          "rsi": 80.0,
+          "not_extended": 41.0,
+          "volume": 39.0,
+          "relative": 65.0,
+          "day_move": 78.0
+        }
+      }
+    },
+    {
       "code": "4927",
       "name": "泰鼎-KY",
       "kind": "stock",
       "close": 40.55,
       "change_pct": -4.14,
       "structure": 75.5,
-      "crowding": 66.8,
+      "crowding": 66.7,
       "score": 42.1,
       "action": "watch",
       "action_label": "觀望",
@@ -2414,7 +2458,7 @@
           "rsi": 94.0,
           "not_extended": 16.0,
           "volume": 48.0,
-          "relative": 58.0,
+          "relative": 57.0,
           "day_move": 77.0
         }
       }
@@ -2515,8 +2559,8 @@
       "close": 272.5,
       "change_pct": -1.98,
       "structure": 62.9,
-      "crowding": 39.7,
-      "score": 40.1,
+      "crowding": 39.5,
+      "score": 40.2,
       "action": "watch",
       "action_label": "觀望",
       "reason": "條件好壞參半,先看不急著動",
@@ -2549,49 +2593,6 @@
           "volume": 49.0,
           "relative": 46.0,
           "day_move": 41.0
-        }
-      }
-    },
-    {
-      "code": "1709",
-      "name": "和益",
-      "kind": "stock",
-      "close": 33.45,
-      "change_pct": -4.43,
-      "structure": 72.8,
-      "crowding": 53.7,
-      "score": 39.9,
-      "action": "watch",
-      "action_label": "觀望",
-      "reason": "近5日相對大盤 -1.79%,比較像沒人買或相對弱,不是剛啟動",
-      "plan": null,
-      "tags": [
-        "個股"
-      ],
-      "risk_tags": [],
-      "detail": {
-        "kind": "stock",
-        "rsi14": 55.0,
-        "vol_ratio_20d": 0.87,
-        "above_ma20": true,
-        "atr_extension": 0.45,
-        "dist_from_high_20d_pct": 11.27,
-        "excess_5d_pct": -1.79,
-        "atr": 2.4209,
-        "ma5": 34.89,
-        "ma20": 32.36,
-        "swing_low_10": 30.6,
-        "swing_high_20": 37.7,
-        "trust_net": 0,
-        "foreign_net": -1029778,
-        "trust_streak": 0,
-        "factors": {
-          "trend": 86.0,
-          "rsi": 80.0,
-          "not_extended": 41.0,
-          "volume": 39.0,
-          "relative": 38.0,
-          "day_move": 78.0
         }
       }
     },
@@ -2641,6 +2642,52 @@
       }
     },
     {
+      "code": "2382",
+      "name": "廣達",
+      "kind": "stock",
+      "close": 335.0,
+      "change_pct": -0.59,
+      "structure": 60.4,
+      "crowding": 42.5,
+      "score": 39.1,
+      "action": "watch",
+      "action_label": "觀望",
+      "reason": "量比 0.76,比較像沒人買或相對弱,不是剛啟動",
+      "plan": null,
+      "tags": [
+        "個股",
+        "強於大盤",
+        "投信連3日買超",
+        "外資投信同步買超"
+      ],
+      "risk_tags": [],
+      "detail": {
+        "kind": "stock",
+        "rsi14": 53.9,
+        "vol_ratio_20d": 0.76,
+        "above_ma20": true,
+        "atr_extension": 0.72,
+        "dist_from_high_20d_pct": 2.19,
+        "excess_5d_pct": 0.71,
+        "atr": 10.4965,
+        "ma5": 337.0,
+        "ma20": 327.48,
+        "swing_low_10": 319.5,
+        "swing_high_20": 342.5,
+        "trust_net": 177000,
+        "foreign_net": 3774802,
+        "trust_streak": 3,
+        "factors": {
+          "trend": 65.0,
+          "rsi": 74.0,
+          "not_extended": 34.0,
+          "volume": 28.0,
+          "relative": 62.0,
+          "day_move": 14.0
+        }
+      }
+    },
+    {
       "code": "2006",
       "name": "東和鋼鐵",
       "kind": "stock",
@@ -2686,92 +2733,47 @@
       }
     },
     {
-      "code": "2382",
-      "name": "廣達",
+      "code": "4977",
+      "name": "眾達-KY",
       "kind": "stock",
-      "close": 335.0,
-      "change_pct": -0.59,
-      "structure": 60.4,
-      "crowding": 42.7,
-      "score": 39.0,
+      "close": 172.5,
+      "change_pct": -2.27,
+      "structure": 73.8,
+      "crowding": 69.7,
+      "score": 38.9,
       "action": "watch",
       "action_label": "觀望",
-      "reason": "量比 0.76,比較像沒人買或相對弱,不是剛啟動",
+      "reason": "條件好壞參半,先看不急著動",
       "plan": null,
       "tags": [
         "個股",
         "強於大盤",
-        "投信連3日買超",
-        "外資投信同步買超"
+        "外資買超"
       ],
       "risk_tags": [],
       "detail": {
         "kind": "stock",
-        "rsi14": 53.9,
-        "vol_ratio_20d": 0.76,
+        "rsi14": 60.1,
+        "vol_ratio_20d": 1.34,
         "above_ma20": true,
-        "atr_extension": 0.72,
-        "dist_from_high_20d_pct": 2.19,
-        "excess_5d_pct": 0.71,
-        "atr": 10.4965,
-        "ma5": 337.0,
-        "ma20": 327.48,
-        "swing_low_10": 319.5,
-        "swing_high_20": 342.5,
-        "trust_net": 177000,
-        "foreign_net": 3774802,
-        "trust_streak": 3,
+        "atr_extension": 1.46,
+        "dist_from_high_20d_pct": 8.97,
+        "excess_5d_pct": 3.92,
+        "atr": 11.2668,
+        "ma5": 172.84,
+        "ma20": 156.1,
+        "swing_low_10": 137.78,
+        "swing_high_20": 189.5,
+        "trust_net": 0,
+        "foreign_net": 28340,
+        "trust_streak": 0,
         "factors": {
-          "trend": 65.0,
-          "rsi": 74.0,
-          "not_extended": 34.0,
-          "volume": 28.0,
-          "relative": 62.0,
-          "day_move": 14.0
-        }
-      }
-    },
-    {
-      "code": "3532",
-      "name": "台勝科",
-      "kind": "stock",
-      "close": 381.0,
-      "change_pct": -1.3,
-      "structure": 69.5,
-      "crowding": 35.4,
-      "score": 38.8,
-      "action": "watch",
-      "action_label": "觀望",
-      "reason": "量比 0.67、近5日相對大盤 -3.04%,比較像沒人買或相對弱,不是剛啟動",
-      "plan": null,
-      "tags": [
-        "個股",
-        "投信買超"
-      ],
-      "risk_tags": [],
-      "detail": {
-        "kind": "stock",
-        "rsi14": 53.6,
-        "vol_ratio_20d": 0.67,
-        "above_ma20": true,
-        "atr_extension": 0.81,
-        "dist_from_high_20d_pct": 8.96,
-        "excess_5d_pct": -3.04,
-        "atr": 29.3201,
-        "ma5": 389.4,
-        "ma20": 357.38,
-        "swing_low_10": 337.5,
-        "swing_high_20": 418.5,
-        "trust_net": 806000,
-        "foreign_net": -50301,
-        "trust_streak": 1,
-        "factors": {
-          "trend": 91.0,
-          "rsi": 72.0,
-          "not_extended": 32.0,
-          "volume": 18.0,
-          "relative": 29.0,
-          "day_move": 26.0
+          "trend": 93.0,
+          "rsi": 90.0,
+          "not_extended": 20.0,
+          "volume": 70.0,
+          "relative": 81.0,
+          "day_move": 47.0
         }
       }
     }
@@ -2784,8 +2786,8 @@
       "close": 14.88,
       "change_pct": -1.91,
       "structure": 66.5,
-      "crowding": 54.8,
-      "score": 39.1,
+      "crowding": 54.6,
+      "score": 39.2,
       "action": "watch",
       "action_label": "觀望",
       "reason": "上檔20日高點 15.47 相對停損不滿1R,空間不足先觀望",
@@ -2818,7 +2820,7 @@
           "rsi": 89.0,
           "not_extended": 36.0,
           "volume": 53.0,
-          "relative": 63.0,
+          "relative": 62.0,
           "day_move": 39.0
         }
       }
@@ -2830,8 +2832,8 @@
       "close": 243.8,
       "change_pct": -0.57,
       "structure": 56.6,
-      "crowding": 43.9,
-      "score": 37.7,
+      "crowding": 43.7,
+      "score": 37.8,
       "action": "watch",
       "action_label": "觀望",
       "reason": "上檔20日高點 248.85 相對停損不滿1R,空間不足先觀望",
@@ -2865,7 +2867,7 @@
           "rsi": 77.0,
           "not_extended": 39.0,
           "volume": 42.0,
-          "relative": 59.0,
+          "relative": 58.0,
           "day_move": 14.0
         }
       }
@@ -2877,8 +2879,8 @@
       "close": 19.77,
       "change_pct": 0.1,
       "structure": 65.9,
-      "crowding": 59.6,
-      "score": 36.0,
+      "crowding": 59.5,
+      "score": 36.1,
       "action": "watch",
       "action_label": "觀望",
       "reason": "條件好壞參半,先看不急著動",
@@ -2922,8 +2924,8 @@
       "close": 41.43,
       "change_pct": -0.84,
       "structure": 63.0,
-      "crowding": 54.4,
-      "score": 35.8,
+      "crowding": 54.3,
+      "score": 35.9,
       "action": "watch",
       "action_label": "觀望",
       "reason": "上檔20日高點 42.62 相對停損不滿1R,空間不足先觀望",
@@ -3012,8 +3014,8 @@
       "close": 18.04,
       "change_pct": -3.43,
       "structure": 65.6,
-      "crowding": 53.1,
-      "score": 33.0,
+      "crowding": 53.0,
+      "score": 33.1,
       "action": "watch",
       "action_label": "觀望",
       "reason": "近5日相對大盤 -1.97%,比較像沒人買或相對弱,不是剛啟動",
@@ -3043,7 +3045,7 @@
           "rsi": 75.0,
           "not_extended": 44.0,
           "volume": 51.0,
-          "relative": 38.0,
+          "relative": 37.0,
           "day_move": 67.0
         }
       }
@@ -3100,8 +3102,8 @@
       "close": 12.78,
       "change_pct": -0.93,
       "structure": 57.0,
-      "crowding": 50.9,
-      "score": 31.6,
+      "crowding": 50.8,
+      "score": 31.7,
       "action": "watch",
       "action_label": "觀望",
       "reason": "上檔20日高點 12.97 相對停損不滿1R,空間不足先觀望",
@@ -3134,7 +3136,7 @@
           "rsi": 85.0,
           "not_extended": 21.0,
           "volume": 40.0,
-          "relative": 65.0,
+          "relative": 64.0,
           "day_move": 19.0
         }
       }
@@ -3191,7 +3193,7 @@
       "close": 33.58,
       "change_pct": -0.21,
       "structure": 56.5,
-      "crowding": 51.7,
+      "crowding": 51.6,
       "score": 30.7,
       "action": "watch",
       "action_label": "觀望",
@@ -3227,7 +3229,7 @@
           "rsi": 96.0,
           "not_extended": 27.0,
           "volume": 50.0,
-          "relative": 77.0,
+          "relative": 76.0,
           "day_move": 6.0
         }
       }

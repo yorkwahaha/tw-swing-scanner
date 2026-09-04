@@ -288,6 +288,15 @@ def _as_naive_dates(idx) -> pd.DatetimeIndex:
     return idx.normalize()
 
 
+def _adj_close_series(hist: pd.DataFrame) -> pd.Series:
+    """5日相對報酬用還原權息價;沒有 Adj Close 才退回 Close。"""
+    if hist is None or hist.empty:
+        return pd.Series(dtype=float)
+    if "Adj Close" in hist.columns and hist["Adj Close"].notna().sum() >= 6:
+        return hist["Adj Close"].dropna()
+    return hist["Close"].dropna()
+
+
 def excess_return(stock_close: pd.Series, index_close: pd.Series, days: int = 5) -> float | None:
     a = stock_close.copy()
     b = index_close.copy()
@@ -403,11 +412,9 @@ def fetch_restricted_codes() -> set[str]:
     try:
         raw = http_get(TWSE_ALTERED).json()
         for row in raw or []:
-            flag = str(row.get("PeriodicCallAuctionTrading", "")).strip()
-            if flag:
-                code = str(row.get("Code", "")).strip().upper()
-                if code:
-                    blocked.add(code)
+            code = str(row.get("Code", "")).strip().upper()
+            if code:
+                blocked.add(code)
     except Exception as exc:
         print(f"[警告] 變更交易名單讀取失敗: {exc}", file=sys.stderr)
     if blocked:
@@ -644,8 +651,8 @@ def extract_features(
         dist_from_high = (last_high20 - last_close) / last_high20
 
     excess_5d = None
-    if taiex is not None and len(taiex["Close"].dropna()) >= 6:
-        excess_5d = excess_return(close, taiex["Close"].dropna(), 5)
+    if taiex is not None:
+        excess_5d = excess_return(_adj_close_series(hist), _adj_close_series(taiex), 5)
 
     tags: list[str] = []
     risk_tags: list[str] = []
@@ -1325,6 +1332,7 @@ def build_lazy_pack(
         "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,"
         "且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,若穿過20日高點則改錨在壓力附近,不滿1R不發計畫。"
         "參考持有5–10個交易日,收盤跌破20日均線視為結構失效。"
+        "停損是盤中極端防守價,失效是收盤結構跌破。"
         "出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。"
     )
     pack["note"] = (
