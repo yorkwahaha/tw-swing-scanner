@@ -6,6 +6,11 @@ on:
     - cron: "0 8 * * 1-5"
   workflow_dispatch: {}   # 允許手動在 GitHub 網頁上點「Run workflow」測試
 
+# 連點兩次 Run workflow 時排隊,不要並行各 commit 再互搶 push
+concurrency:
+  group: daily-scan-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -15,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,4 +40,5 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add docs/data.json docs/snapshots.json
           git diff --quiet --cached || git commit -m "chore: 更新每日觀察清單 $(date -u +%Y-%m-%d)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push
