@@ -1,132 +1,6 @@
 {
   "days": [
     {
-      "date": "2026-09-02",
-      "taiex_change_pct": -1.67,
-      "candidates": [
-        {
-          "code": "6269",
-          "name": "台郡",
-          "close": 75.2,
-          "score": 44.1
-        },
-        {
-          "code": "3450",
-          "name": "聯鈞",
-          "close": 625.0,
-          "score": 43.4
-        },
-        {
-          "code": "8996",
-          "name": "高力",
-          "close": 1175.0,
-          "score": 43.4
-        },
-        {
-          "code": "1608",
-          "name": "華榮",
-          "close": 37.35,
-          "score": 43.0
-        },
-        {
-          "code": "1802",
-          "name": "台玻",
-          "close": 61.3,
-          "score": 40.3
-        },
-        {
-          "code": "1519",
-          "name": "華城",
-          "close": 761.0,
-          "score": 39.5
-        },
-        {
-          "code": "3714",
-          "name": "富采",
-          "close": 62.5,
-          "score": 39.3
-        },
-        {
-          "code": "4956",
-          "name": "光鋐",
-          "close": 36.2,
-          "score": 39.3
-        },
-        {
-          "code": "3049",
-          "name": "精金",
-          "close": 13.3,
-          "score": 39.0
-        },
-        {
-          "code": "3673",
-          "name": "TPK-KY",
-          "close": 67.8,
-          "score": 38.5
-        },
-        {
-          "code": "2340",
-          "name": "台亞",
-          "close": 34.1,
-          "score": 37.3
-        },
-        {
-          "code": "3376",
-          "name": "新日興",
-          "close": 213.0,
-          "score": 37.2
-        },
-        {
-          "code": "9921",
-          "name": "巨大",
-          "close": 102.5,
-          "score": 37.1
-        },
-        {
-          "code": "6531",
-          "name": "愛普*",
-          "close": 958.0,
-          "score": 36.8
-        },
-        {
-          "code": "3167",
-          "name": "大量",
-          "close": 800.0,
-          "score": 36.6
-        },
-        {
-          "code": "6426",
-          "name": "統新",
-          "close": 270.0,
-          "score": 36.4
-        },
-        {
-          "code": "1605",
-          "name": "華新",
-          "close": 38.75,
-          "score": 35.9
-        },
-        {
-          "code": "6213",
-          "name": "聯茂",
-          "close": 550.0,
-          "score": 35.6
-        },
-        {
-          "code": "6706",
-          "name": "惠特",
-          "close": 127.0,
-          "score": 35.2
-        },
-        {
-          "code": "3135",
-          "name": "凌航",
-          "close": 173.0,
-          "score": 34.6
-        }
-      ]
-    },
-    {
       "date": "2026-09-03",
       "taiex_change_pct": -0.67,
       "taiex_close": 45857.66,
@@ -18695,6 +18569,631 @@
         "4722",
         "3167",
         "2428"
+      ]
+    },
+    {
+      "date": "2026-10-19",
+      "taiex_change_pct": -0.61,
+      "taiex_close": 46822.08,
+      "market_regime": "risk_off",
+      "candidates": [
+        {
+          "code": "2368",
+          "name": "金像電",
+          "kind": "stock",
+          "close": 1250.0,
+          "score": 53.4,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 1154.75
+        },
+        {
+          "code": "1709",
+          "name": "和益",
+          "kind": "stock",
+          "close": 51.4,
+          "score": 52.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 53.16
+        },
+        {
+          "code": "6526",
+          "name": "達發",
+          "kind": "stock",
+          "close": 781.0,
+          "score": 51.4,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 789.35
+        },
+        {
+          "code": "3605",
+          "name": "宏致",
+          "kind": "stock",
+          "close": 168.0,
+          "score": 50.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 171.78
+        },
+        {
+          "code": "6191",
+          "name": "精成科",
+          "kind": "stock",
+          "close": 91.0,
+          "score": 50.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 87.04
+        },
+        {
+          "code": "1303",
+          "name": "南亞",
+          "kind": "stock",
+          "close": 303.5,
+          "score": 49.3,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 276.3
+        },
+        {
+          "code": "2313",
+          "name": "華通",
+          "kind": "stock",
+          "close": 248.0,
+          "score": 49.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 235.25
+        },
+        {
+          "code": "6715",
+          "name": "嘉基",
+          "kind": "stock",
+          "close": 480.5,
+          "score": 47.0,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 472.23
+        },
+        {
+          "code": "8046",
+          "name": "南電",
+          "kind": "stock",
+          "close": 1380.0,
+          "score": 45.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 1333.75
+        },
+        {
+          "code": "1718",
+          "name": "中纖",
+          "kind": "stock",
+          "close": 11.8,
+          "score": 45.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 11.28
+        },
+        {
+          "code": "3717",
+          "name": "聯嘉投控",
+          "kind": "stock",
+          "close": 28.5,
+          "score": 45.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 27.16
+        },
+        {
+          "code": "1312",
+          "name": "國喬",
+          "kind": "stock",
+          "close": 15.2,
+          "score": 45.4,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 15.38
+        },
+        {
+          "code": "9945",
+          "name": "潤泰新",
+          "kind": "stock",
+          "close": 29.8,
+          "score": 44.5,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 29.32
+        },
+        {
+          "code": "4977",
+          "name": "眾達-KY",
+          "kind": "stock",
+          "close": 175.0,
+          "score": 44.3,
+          "action": "exit",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 175.15
+        },
+        {
+          "code": "3189",
+          "name": "景碩",
+          "kind": "stock",
+          "close": 982.0,
+          "score": 44.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 983.85
+        },
+        {
+          "code": "0056",
+          "name": "元大高股息",
+          "kind": "etf",
+          "close": 58.0,
+          "score": 41.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 57.61
+        },
+        {
+          "code": "00757",
+          "name": "統一FANG+",
+          "kind": "etf",
+          "close": 144.05,
+          "score": 39.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 144.3
+        },
+        {
+          "code": "00662",
+          "name": "富邦NASDAQ",
+          "kind": "etf",
+          "close": 123.4,
+          "score": 35.0,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 124.61
+        },
+        {
+          "code": "00940",
+          "name": "元大台灣價值高息",
+          "kind": "etf",
+          "close": 13.34,
+          "score": 34.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 13.23
+        },
+        {
+          "code": "00919",
+          "name": "群益台灣精選高息",
+          "kind": "etf",
+          "close": 32.45,
+          "score": 34.1,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 32.05
+        }
+      ],
+      "tracked_pool": [
+        {
+          "code": "2368",
+          "name": "金像電",
+          "kind": "stock",
+          "close": 1250.0,
+          "score": 53.4,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 1154.75
+        },
+        {
+          "code": "1709",
+          "name": "和益",
+          "kind": "stock",
+          "close": 51.4,
+          "score": 52.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 53.16
+        },
+        {
+          "code": "6526",
+          "name": "達發",
+          "kind": "stock",
+          "close": 781.0,
+          "score": 51.4,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 789.35
+        },
+        {
+          "code": "3605",
+          "name": "宏致",
+          "kind": "stock",
+          "close": 168.0,
+          "score": 50.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 171.78
+        },
+        {
+          "code": "6191",
+          "name": "精成科",
+          "kind": "stock",
+          "close": 91.0,
+          "score": 50.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 87.04
+        },
+        {
+          "code": "1303",
+          "name": "南亞",
+          "kind": "stock",
+          "close": 303.5,
+          "score": 49.3,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 276.3
+        },
+        {
+          "code": "2313",
+          "name": "華通",
+          "kind": "stock",
+          "close": 248.0,
+          "score": 49.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 235.25
+        },
+        {
+          "code": "6715",
+          "name": "嘉基",
+          "kind": "stock",
+          "close": 480.5,
+          "score": 47.0,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 472.23
+        },
+        {
+          "code": "8046",
+          "name": "南電",
+          "kind": "stock",
+          "close": 1380.0,
+          "score": 45.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 1333.75
+        },
+        {
+          "code": "1718",
+          "name": "中纖",
+          "kind": "stock",
+          "close": 11.8,
+          "score": 45.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 11.28
+        },
+        {
+          "code": "3717",
+          "name": "聯嘉投控",
+          "kind": "stock",
+          "close": 28.5,
+          "score": 45.6,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 27.16
+        },
+        {
+          "code": "1312",
+          "name": "國喬",
+          "kind": "stock",
+          "close": 15.2,
+          "score": 45.4,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 15.38
+        },
+        {
+          "code": "9945",
+          "name": "潤泰新",
+          "kind": "stock",
+          "close": 29.8,
+          "score": 44.5,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 29.32
+        },
+        {
+          "code": "4977",
+          "name": "眾達-KY",
+          "kind": "stock",
+          "close": 175.0,
+          "score": 44.3,
+          "action": "exit",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 175.15
+        },
+        {
+          "code": "3189",
+          "name": "景碩",
+          "kind": "stock",
+          "close": 982.0,
+          "score": 44.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 983.85
+        },
+        {
+          "code": "8996",
+          "name": "高力",
+          "kind": "stock",
+          "close": 1525.0,
+          "score": 43.4,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 1575.5
+        },
+        {
+          "code": "3030",
+          "name": "德律",
+          "kind": "stock",
+          "close": 288.0,
+          "score": 42.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 288.9
+        },
+        {
+          "code": "2890",
+          "name": "永豐金",
+          "kind": "stock",
+          "close": 45.25,
+          "score": 42.5,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 44.75
+        },
+        {
+          "code": "1802",
+          "name": "台玻",
+          "kind": "stock",
+          "close": 66.0,
+          "score": 42.2,
+          "action": "trim",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 61.23
+        },
+        {
+          "code": "6834",
+          "name": "天二科技",
+          "kind": "stock",
+          "close": 133.5,
+          "score": 42.0,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 125.82
+        },
+        {
+          "code": "0056",
+          "name": "元大高股息",
+          "kind": "etf",
+          "close": 58.0,
+          "score": 41.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 57.61
+        },
+        {
+          "code": "00757",
+          "name": "統一FANG+",
+          "kind": "etf",
+          "close": 144.05,
+          "score": 39.2,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 144.3
+        },
+        {
+          "code": "00662",
+          "name": "富邦NASDAQ",
+          "kind": "etf",
+          "close": 123.4,
+          "score": 35.0,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 124.61
+        },
+        {
+          "code": "00940",
+          "name": "元大台灣價值高息",
+          "kind": "etf",
+          "close": 13.34,
+          "score": 34.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 13.23
+        },
+        {
+          "code": "00919",
+          "name": "群益台灣精選高息",
+          "kind": "etf",
+          "close": 32.45,
+          "score": 34.1,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 32.05
+        },
+        {
+          "code": "00878",
+          "name": "國泰永續高股息",
+          "kind": "etf",
+          "close": 35.15,
+          "score": 33.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 35.08
+        },
+        {
+          "code": "00953B",
+          "name": "群益優選非投等債",
+          "kind": "etf",
+          "close": 9.59,
+          "score": 32.3,
+          "action": "trim",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 9.53
+        },
+        {
+          "code": "00961",
+          "name": "FT臺灣永續高息",
+          "kind": "etf",
+          "close": 13.44,
+          "score": 29.5,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 13.3
+        },
+        {
+          "code": "00929",
+          "name": "復華台灣科技優息",
+          "kind": "etf",
+          "close": 29.35,
+          "score": 29.3,
+          "action": "exit",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 29.57
+        },
+        {
+          "code": "00934",
+          "name": "中信成長高股息",
+          "kind": "etf",
+          "close": 29.29,
+          "score": 25.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 29.96
+        }
+      ],
+      "closed": [
+        "00934",
+        "2357",
+        "6933",
+        "2375",
+        "3189",
+        "3702",
+        "00757",
+        "6526",
+        "00984A",
+        "2883",
+        "1605",
+        "3706",
+        "1597"
       ]
     }
   ]
