@@ -935,8 +935,8 @@ def classify_action(c: Candidate, regime: str) -> tuple[str, str]:
         and not_lagging
         and not both_sold
     ):
-        if regime == "risk_off":
-            return "scale_in", "結構不錯但大盤在20MA之下,改分批、不一次買滿"
+        if regime != "risk_on":
+            return "scale_in", "結構不錯但大盤趨勢尚未確認,改分批、不一次買滿"
         return "strong_buy", "結構高、量能有跟上、沒明顯輸大盤,比較像動能剛啟動"
 
     rsi_scale = rsi is not None and 48 <= rsi <= 70
@@ -1272,7 +1272,7 @@ def build_exit_from_history(
         action = None
         # 硬停損 / 破均線 / 停利優先於 classify_action 的技術減碼(今日大跌等)
         if stop and px <= float(stop):
-            action, reason = "exit", f"跌破停損 {stop}"
+            action, reason = "exit", f"收盤跌破參考停損 {stop}（非盤中觸價判定）"
         elif (live is not None and above is False) or (live is None and ma20 and px < float(ma20)):
             action, reason = "exit", f"收盤跌破20日均線 {ma20}"
         elif tp2 and px >= float(tp2):
@@ -1354,7 +1354,7 @@ def build_lazy_pack(
         "進場區間=現價回檔至5日均線附近;停損預設1.5×Wilder ATR,"
         "且不少於 max(1×ATR, 2.5%);停利先算1.5R/2.5R,若穿過20日高點則改錨在壓力附近,不滿1R不發計畫。"
         "參考持有5–10個交易日,收盤跌破20日均線視為結構失效。"
-        "停損是盤中極端防守價,失效是收盤結構跌破。"
+        "停損與結構失效皆以收盤價判定；盤中觸及不會由本系統即時偵測。"
         "出場欄只追蹤過去10個交易日本系統推薦過的標的。風險自負。"
     )
     pack["note"] = (
@@ -1704,6 +1704,9 @@ def main():
     args = parser.parse_args()
 
     out_path = Path(args.out)
+    if args.demo and args.out == "docs/data.json":
+        # 預設 demo 不可覆蓋線上正式資料；顯式 --out 仍允許輸出到自選檔案。
+        out_path = Path("docs/demo-data.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     if args.demo:
