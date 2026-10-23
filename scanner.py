@@ -1316,7 +1316,9 @@ def build_exit_from_history(
         action = None
         # 硬停損 / 破均線 / 停利優先於 classify_action 的技術減碼(今日大跌等)
         if stop and px <= float(stop):
-            action, reason = "exit", f"收盤跌破參考停損 {stop}（{'已對齊除權息' if adjusted_ok else '除權息未核對'}；非盤中觸價）"
+            adjustment_note = ("依還原收盤價比率換算；配股／減資未個別核對"
+                               if adjusted_ok else "缺少調整依據，除權息未核對")
+            action, reason = "exit", f"收盤跌破參考停損 {stop}（{adjustment_note}；非盤中觸價）"
         elif (live is not None and above is False) or (live is None and ma20 and px < float(ma20)):
             action, reason = "exit", f"收盤跌破20日均線 {ma20}"
         elif tp2 and px >= float(tp2):
