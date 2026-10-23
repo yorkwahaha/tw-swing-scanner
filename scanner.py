@@ -1221,12 +1221,52 @@ def holder_reason(action: str, live: Candidate | None, fallback: str) -> str:
     return text
 
 
+def adjusted_plan_levels(
+    rec: dict, hist: pd.DataFrame | None, today_date: str, today_close: float,
+    official_change: float | None = None,
+) -> tuple[dict, bool]:
+    """轉換推薦日停損/停利價到本交易日的除權息基準；缺證據不推估。"""
+    levels = {key: rec.get(key) for key in ("stop", "tp1", "tp2", "ma20")}
+    if hist is None or hist.empty or not {"Close", "Adj Close"} <= set(hist.columns):
+        return levels, False
+    rec_date = rec.get("rec_date")
+    if not rec_date:
+        return levels, False
+    try:
+        raw = normalize_ohlcv_index(hist)
+        start = raw.loc[raw.index <= pd.Timestamp(rec_date)]
+        if start.empty:
+            return levels, False
+        first = start.iloc[-1]
+        latest = overlay_last_bar(
+            raw, today_date, {"close": today_close, "change": official_change},
+        )
+        if pd.Timestamp(today_date) not in latest.index:
+            return levels, False
+        last = latest.loc[pd.Timestamp(today_date)]
+        ratios = [first["Close"], first["Adj Close"], last["Close"], last["Adj Close"]]
+        if any(pd.isna(value) or float(value) <= 0 for value in ratios):
+            return levels, False
+        factor = (float(first["Adj Close"]) / float(first["Close"])) / (
+            float(last["Adj Close"]) / float(last["Close"])
+        )
+        if not (0.1 <= factor <= 1.1):
+            return levels, False
+        for key, value in levels.items():
+            if value is not None and not pd.isna(value):
+                levels[key] = round(float(value) * factor, 4)
+        return levels, True
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return levels, False
+
+
 def build_exit_from_history(
     candidates: list[Candidate],
     history_days: list[dict],
     today_date: str,
     today_df: pd.DataFrame,
     blocked: set[str] | None = None,
+    histories: dict[str, pd.DataFrame] | None = None,
 ) -> tuple[list[Candidate], list[Candidate]]:
     """只追蹤日前推薦,不要把全市場大跌股塞進出場欄。"""
     prior = collect_prior_recs(history_days, today_date)
@@ -1235,6 +1275,7 @@ def build_exit_from_history(
     by_code = {c.code: c for c in candidates}
     today_px = dict(zip(today_df["code"].astype(str), today_df["close"].astype(float)))
     today_chg = dict(zip(today_df["code"].astype(str), today_df["change_pct"].astype(float)))
+    official_change = dict(zip(today_df["code"].astype(str), today_df["change"].astype(float))) if "change" in today_df else {}
     today_name = dict(zip(today_df["code"].astype(str), today_df["name"].astype(str)))
     blocked = blocked or set()
     trims: list[Candidate] = []
@@ -1264,15 +1305,18 @@ def build_exit_from_history(
             continue
         live = by_code.get(code)
 
-        stop, tp1, tp2 = rec.get("stop"), rec.get("tp1"), rec.get("tp2")
+        adjusted, adjusted_ok = adjusted_plan_levels(
+            rec, (histories or {}).get(code), today_date, px, official_change.get(code),
+        )
+        stop, tp1, tp2 = adjusted["stop"], adjusted["tp1"], adjusted["tp2"]
         live_ma20 = (live.detail or {}).get("ma20") if live else None
-        ma20 = live_ma20 if live_ma20 not in (None, "") else rec.get("ma20")
+        ma20 = live_ma20 if live_ma20 not in (None, "") else adjusted["ma20"]
         above = (live.detail or {}).get("above_ma20") if live else None
         reason = None
         action = None
         # 硬停損 / 破均線 / 停利優先於 classify_action 的技術減碼(今日大跌等)
         if stop and px <= float(stop):
-            action, reason = "exit", f"收盤跌破參考停損 {stop}（非盤中觸價判定）"
+            action, reason = "exit", f"收盤跌破參考停損 {stop}（{'已對齊除權息' if adjusted_ok else '除權息未核對'}；非盤中觸價）"
         elif (live is not None and above is False) or (live is None and ma20 and px < float(ma20)):
             action, reason = "exit", f"收盤跌破20日均線 {ma20}"
         elif tp2 and px >= float(tp2):
@@ -1725,7 +1769,11 @@ def main():
         print(f"      候選池: {len(pool)} 檔(個股 {int((pool.kind=='stock').sum())} / ETF {int((pool.kind=='etf').sum())})")
 
         print("[3/4] 抓取歷史K線並計算指標(需要幾分鐘,請耐心等候)...")
-        hist_map = fetch_history(pool["code"].tolist())
+        snap_path = snapshots_path_for(out_path)
+        history = load_snapshots(snap_path)
+        prior_codes = set(collect_prior_recs(history, as_of))
+        # 舊推薦已不在今日候選池時，也要查還原價以核對停損。
+        hist_map = fetch_history(sorted(set(pool["code"].tolist()) | prior_codes))
         taiex_hist = hist_map.get(TAIEX_TICKER)
         taiex_bar = None
         if official_taiex_close is not None:
@@ -1764,7 +1812,8 @@ def main():
 
         rows: list[FeatureRow] = []
         for code, hist in hist_map.items():
-            if code == TAIEX_TICKER:
+            # 歷史推薦額外取得的 K 線只用於除權息核對，不可越過今日流動性初篩。
+            if code == TAIEX_TICKER or code not in name_map:
                 continue
             feat = extract_features(
                 code,
@@ -1784,11 +1833,9 @@ def main():
         print("[4/4] 排序並輸出...")
         candidates = rank_features(rows)
         assign_actions(candidates, market.get("regime") or "unknown")
-        snap_path = snapshots_path_for(out_path)
-        history = load_snapshots(snap_path)
         review = build_review(history, snapshot, as_of, taiex_change_pct, snap_taiex_close)
         trim_items, exit_items = build_exit_from_history(
-            candidates, history, as_of, snapshot, blocked,
+            candidates, history, as_of, snapshot, blocked, histories=hist_map,
         )
         lazy_pack = build_lazy_pack(candidates, trim_items, exit_items)
         output = build_output(
