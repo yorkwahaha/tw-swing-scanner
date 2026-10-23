@@ -18650,7 +18650,7 @@
           "name": "大聯大",
           "kind": "stock",
           "close": 114.5,
-          "score": 50.5,
+          "score": 50.6,
           "action": "watch",
           "stop": null,
           "tp1": null,
@@ -18686,7 +18686,7 @@
           "name": "凱基金",
           "kind": "stock",
           "close": 37.75,
-          "score": 46.1,
+          "score": 46.2,
           "action": "watch",
           "stop": null,
           "tp1": null,
@@ -18814,6 +18814,18 @@
           "ma20": 79.31
         },
         {
+          "code": "0056",
+          "name": "元大高股息",
+          "kind": "etf",
+          "close": 56.3,
+          "score": 40.3,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 57.72
+        },
+        {
           "code": "00940",
           "name": "元大台灣價值高息",
           "kind": "etf",
@@ -18824,18 +18836,6 @@
           "tp1": 13.62,
           "tp2": 14.12,
           "ma20": 13.26
-        },
-        {
-          "code": "0056",
-          "name": "元大高股息",
-          "kind": "etf",
-          "close": 56.3,
-          "score": 37.0,
-          "action": "watch",
-          "stop": null,
-          "tp1": null,
-          "tp2": null,
-          "ma20": 57.72
         },
         {
           "code": "00662",
@@ -18892,7 +18892,7 @@
           "name": "大聯大",
           "kind": "stock",
           "close": 114.5,
-          "score": 50.5,
+          "score": 50.6,
           "action": "watch",
           "stop": null,
           "tp1": null,
@@ -18928,7 +18928,7 @@
           "name": "凱基金",
           "kind": "stock",
           "close": 37.75,
-          "score": 46.1,
+          "score": 46.2,
           "action": "watch",
           "stop": null,
           "tp1": null,
@@ -19080,18 +19080,6 @@
           "ma20": 73.39
         },
         {
-          "code": "6526",
-          "name": "達發",
-          "kind": "stock",
-          "close": 778.0,
-          "score": 41.8,
-          "action": "watch",
-          "stop": null,
-          "tp1": null,
-          "tp2": null,
-          "ma20": 806.4
-        },
-        {
           "code": "4906",
           "name": "正文",
           "kind": "stock",
@@ -19102,6 +19090,18 @@
           "tp1": null,
           "tp2": null,
           "ma20": 41.48
+        },
+        {
+          "code": "6526",
+          "name": "達發",
+          "kind": "stock",
+          "close": 778.0,
+          "score": 41.8,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 806.4
         },
         {
           "code": "3535",
@@ -19116,6 +19116,18 @@
           "ma20": 92.51
         },
         {
+          "code": "0056",
+          "name": "元大高股息",
+          "kind": "etf",
+          "close": 56.3,
+          "score": 40.3,
+          "action": "watch",
+          "stop": null,
+          "tp1": null,
+          "tp2": null,
+          "ma20": 57.72
+        },
+        {
           "code": "00940",
           "name": "元大台灣價值高息",
           "kind": "etf",
@@ -19126,18 +19138,6 @@
           "tp1": 13.62,
           "tp2": 14.12,
           "ma20": 13.26
-        },
-        {
-          "code": "0056",
-          "name": "元大高股息",
-          "kind": "etf",
-          "close": 56.3,
-          "score": 37.0,
-          "action": "watch",
-          "stop": null,
-          "tp1": null,
-          "tp2": null,
-          "ma20": 57.72
         },
         {
           "code": "00662",
@@ -19228,7 +19228,7 @@
           "name": "凱基台灣TOP50",
           "kind": "etf",
           "close": 15.93,
-          "score": 24.1,
+          "score": 24.2,
           "action": "watch",
           "stop": null,
           "tp1": null,
